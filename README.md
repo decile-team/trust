@@ -1,7 +1,7 @@
 <p align="center">
     <br>
         &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
-        <img src="https://github.com/decile-team/trust/blob/master/trust_logo.svg" width="500" height="150"/>
+        <img src="https://github.com/decile-team/trust/blob/main/trust_logo.svg" width="500" height="150"/>
     </br>
 </p>
 
