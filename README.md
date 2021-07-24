@@ -11,7 +11,10 @@
     </a>
     <a href="https://decile.org/">
         <img alt="Decile" src="https://img.shields.io/badge/website-online-green">
-    </a>  
+    </a>
+    <a href="https://trust.readthedocs.io/en/latest/index.html">
+        <img alt="Documentation" src="https://img.shields.io/badge/docs-passing-brightgreen">
+    </a>
     <a href="#">
         <img alt="GitHub Stars" src="https://img.shields.io/github/stars/decile-team/trust">
     </a>
@@ -55,8 +58,13 @@ TRUST is a toolkit which provides support for various targeted selection algorit
 5) "torch >= 1.4.0",
 6) "submodlib"
 
+
+## Documentation
+Learn more about TRUST by reading our [documentation](https://trust.readthedocs.io/en/latest/index.html).
+
 ## Tutorials
 1. [Rare Classes Demo](https://colab.research.google.com/drive/1iidYqUu2Vkv_9lbIwvuwWKYPkhHt-vHR?usp=sharing)
+2. [Fairness Demo](https://colab.research.google.com/drive/1STgb2cBzKPmXMChlq5Zv2VMhLHqUssyr?usp=sharing)
 
 
 You can also download the .ipynb files from the tutorials folder.
