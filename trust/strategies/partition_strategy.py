@@ -6,6 +6,51 @@ from .strategy import Strategy
 
 class PartitionStrategy(Strategy):
     
+    """
+    This strategy presents a wrapper around the other partitionable strategies within this library. Often, the unlabeled 
+    dataset is very large, lending to sometimes intractable memory requirements for the operation of the other strategies. 
+    Here, the unlabeled dataset is partitioned into a configurable number of sets. The wrapped strategy is then created using 
+    all the relevant arguments provided to PartitionStrategy; however, the unlabeled_dataset argument receives one of the 
+    partitions instead of the full unlabeled dataset. Using this newly created wrapped strategy that has one of the unlabeled 
+    partitions, select() is called with a budget argument that is a fraction of the budget passed to PartitionStrategy's select().
+    This fraction is proportional to the fraction between the partition size and the full unlabeled set size. Hence, the total 
+    number of indices collected by PartitionStrategy's select() is equal to its budget argument.
+    
+    Parameters
+    ----------
+    labeled_dataset: torch.utils.data.Dataset
+        The labeled dataset to be used in this strategy. For the purposes of selection, the labeled dataset is not used, 
+        but it is provided to fit the common framework of the Strategy superclass.
+    unlabeled_dataset: torch.utils.data.Dataset
+        The unlabeled dataset to be used in this strategy. It is used in the selection process as described above.
+        Importantly, the unlabeled dataset must return only a data Tensor; if indexing the unlabeled dataset returns a tuple of 
+        more than one component, unexpected behavior will most likely occur.
+    net: torch.nn.Module
+        The neural network model to use for embeddings and predictions. Notably, all embeddings typically come from extracted 
+        features from this network or from gradient embeddings based on the loss, which can be based on hypothesized gradients 
+        or on true gradients (depending on the availability of the label).
+    nclasses: int
+        The number of classes being predicted by the neural network.
+    args: dict
+        A dictionary containing many configurable settings for this strategy and the wrapped strategy. 
+        Each key-value pair is described below:
+            'batch_size': int
+                The batch size used internally for torch.utils.data.DataLoader objects. Default: 1
+            'device': string
+                The device to be used for computation. PyTorch constructs are transferred to this device. Usually is one 
+                of 'cuda' or 'cpu'. Default: 'cuda' if a CUDA-enabled device is available; otherwise, 'cpu'
+            'loss': function
+                The loss function to be used in computations. Default: torch.nn.functional.cross_entropy
+            'num_partitions': int
+                The number of partitions to use for the unlabeled dataset. Default: 1
+            'wrapped_strategy_class': class
+                The class of the strategy to use for each partition. REQUIRED
+    query_dataset: torch.utils.data.Dataset
+        The query dataset to be used in the wrapped strategy. Not all wrapped strategies require this argument. Default: None
+    private_dataset: torch.utils.data.Dataset
+        The private dataset to be used in the wrapped strategy. Not all wrapped strategies require this argument. Default: None
+    """
+    
     def __init__(self, labeled_dataset, unlabeled_dataset, net, nclasses, args={}, query_dataset=None, private_dataset=None): #
         
         super(PartitionStrategy, self).__init__(labeled_dataset, unlabeled_dataset, net, nclasses, args)
