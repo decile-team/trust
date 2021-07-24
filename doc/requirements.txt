@@ -1,1 +1,1 @@
-sphinxcontrib-bibtex>=2.3.1a0
+sphinxcontrib-bibtex>=2.3.1
