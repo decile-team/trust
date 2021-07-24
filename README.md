@@ -7,7 +7,7 @@
 
 <p align="center">
     <a href="https://github.com/decile-team/trust/blob/main/LICENSE">
-        <img alt="GitHub" src="https://img.shields.io/github/license/decile-team/trust?color=blue">
+        <img alt="GitHub license" src="https://img.shields.io/github/license/decile-team/trust"></a>
     </a>
     <a href="https://decile.org/">
         <img alt="Decile" src="https://img.shields.io/badge/website-online-green">
@@ -18,9 +18,19 @@
     <a href="#">
         <img alt="GitHub Forks" src="https://img.shields.io/github/forks/decile-team/trust">
     </a>
+    <a href="https://github.com/decile-team/trust/issues">
+        <img alt="GitHub issues" src="https://img.shields.io/github/issues/decile-team/trust">
+    </a>
 </p>
 
 # About TRUST
+
+<p align="center">
+    <br>
+        &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+        <img src="https://github.com/decile-team/trust/blob/main/tss.png" width="763" height="417"/>
+    </br>
+</p>
 
 Efficiently search and mine for specific (targeted) classes/slices in your dataset to improve model performance and personalize your models.
 TRUST supports a number of algorithms for targeted selection which provides a mechanism to include additional information via data to priortize the semantics of the selection.
