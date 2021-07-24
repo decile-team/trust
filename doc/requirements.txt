@@ -1,5 +1,5 @@
 sphinxcontrib-bibtex>=2.3.0
-submodlib
+submodlib -i https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/
 multipledispatch==0.6.0
 scikit-learn==0.23.0
 numpy>=1.14.2
