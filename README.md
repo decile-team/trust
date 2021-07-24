@@ -5,6 +5,21 @@
     </br>
 </p>
 
+<p align="center">
+    <a href="https://github.com/decile-team/trust/blob/main/LICENSE">
+        <img alt="GitHub" src="https://img.shields.io/github/license/decile-team/trust?color=blue">
+    </a>
+    <a href="https://decile.org/">
+        <img alt="Decile" src="https://img.shields.io/badge/website-online-green">
+    </a>  
+    <a href="#">
+        <img alt="GitHub Stars" src="https://img.shields.io/github/stars/decile-team/trust">
+    </a>
+    <a href="#">
+        <img alt="GitHub Forks" src="https://img.shields.io/github/forks/decile-team/trust">
+    </a>
+</p>
+
 # About TRUST
 
 Efficiently search and mine for specific (targeted) classes/slices in your dataset to improve model performance and personalize your models.
