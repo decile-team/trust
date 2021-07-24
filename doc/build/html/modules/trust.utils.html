@@ -1,0 +1,483 @@
+
+
+<!DOCTYPE html>
+<!--[if IE 8]><html class="no-js lt-ie9" lang="en" > <![endif]-->
+<!--[if gt IE 8]><!--> <html class="no-js" lang="en" > <!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Utilities &mdash; TRUST v0.1 documentation</title>
+  
+
+  
+  
+  
+  
+
+  
+
+  
+  
+    
+
+  
+
+  
+    <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="Strategies" href="trust.strategies.html" /> 
+
+  
+  <script src="../_static/js/modernizr.min.js"></script>
+
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search">
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> TRUST
+          
+
+          
+            
+            <img src="../_static/trust_logo.svg" class="logo" alt="Logo"/>
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">TRUST</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="trust.strategies.html">Strategies</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">Utilities</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#module-trust.utils.custom_dataset">Custom Datasets</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-trust.utils.utils">Other Utilities</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#models">Models</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">TRUST</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html">Docs</a> &raquo;</li>
+        
+          <li><a href="modules.html">TRUST</a> &raquo;</li>
+        
+      <li>Utilities</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+            
+            <a href="../_sources/modules/trust.utils.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="utilities">
+<h1>Utilities<a class="headerlink" href="#utilities" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="module-trust.utils.custom_dataset">
+<span id="custom-datasets"></span><h2>Custom Datasets<a class="headerlink" href="#module-trust.utils.custom_dataset" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="trust.utils.custom_dataset.DataHandler_CIFAR10">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.custom_dataset.</code><code class="sig-name descname">DataHandler_CIFAR10</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/custom_dataset.html#DataHandler_CIFAR10"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.custom_dataset.DataHandler_CIFAR10" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data Handler to load CIFAR10 dataset.
+This class extends <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code> to handle
+loading data even without labels</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>numpy array</em>) – Data to be loaded</p></li>
+<li><p><strong>y</strong> (<em>numpy array</em><em>, </em><em>optional</em>) – Labels to be loaded (default: None)</p></li>
+<li><p><strong>select</strong> (<em>bool</em>) – True if loading data without labels, False otherwise</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="trust.utils.custom_dataset.DataHandler_MNIST">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.custom_dataset.</code><code class="sig-name descname">DataHandler_MNIST</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/custom_dataset.html#DataHandler_MNIST"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.custom_dataset.DataHandler_MNIST" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data Handler to load MNIST dataset.
+This class extends <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code> to handle
+loading data even without labels</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>numpy array</em>) – Data to be loaded</p></li>
+<li><p><strong>y</strong> (<em>numpy array</em><em>, </em><em>optional</em>) – Labels to be loaded (default: None)</p></li>
+<li><p><strong>select</strong> (<em>bool</em>) – True if loading data without labels, False otherwise</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="trust.utils.custom_dataset.DataHandler_SVHN">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.custom_dataset.</code><code class="sig-name descname">DataHandler_SVHN</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/custom_dataset.html#DataHandler_SVHN"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.custom_dataset.DataHandler_SVHN" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data Handler to load SVHN dataset.
+This class extends <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code> to handle
+loading data even without labels</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>numpy array</em>) – Data to be loaded</p></li>
+<li><p><strong>y</strong> (<em>numpy array</em><em>, </em><em>optional</em>) – Labels to be loaded (default: None)</p></li>
+<li><p><strong>select</strong> (<em>bool</em>) – True if loading data without labels, False otherwise</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="trust.utils.custom_dataset.DataHandler_UTKFace">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.custom_dataset.</code><code class="sig-name descname">DataHandler_UTKFace</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/custom_dataset.html#DataHandler_UTKFace"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.custom_dataset.DataHandler_UTKFace" title="Permalink to this definition">¶</a></dt>
+<dd><p>Data Handler to load UTKFace dataset.
+This class extends <code class="xref py py-class docutils literal notranslate"><span class="pre">torch.utils.data.Dataset</span></code> to handle
+loading data even without labels</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>X</strong> (<em>numpy array</em>) – Data to be loaded</p></li>
+<li><p><strong>y</strong> (<em>numpy array</em><em>, </em><em>optional</em>) – Labels to be loaded (default: None)</p></li>
+<li><p><strong>select</strong> (<em>bool</em>) – True if loading data without labels, False otherwise</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt id="trust.utils.custom_dataset.load_dataset_custom">
+<code class="sig-prename descclassname">trust.utils.custom_dataset.</code><code class="sig-name descname">load_dataset_custom</code><span class="sig-paren">(</span><em class="sig-param"><span class="n">datadir</span></em>, <em class="sig-param"><span class="n">dset_name</span></em>, <em class="sig-param"><span class="n">feature</span></em>, <em class="sig-param"><span class="n">split_cfg</span></em>, <em class="sig-param"><span class="n">augVal</span><span class="o">=</span><span class="default_value">False</span></em>, <em class="sig-param"><span class="n">dataAug</span><span class="o">=</span><span class="default_value">True</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/custom_dataset.html#load_dataset_custom"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.custom_dataset.load_dataset_custom" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads a common dataset with additional options to create class imbalances, out-of-distribution classes, and redundancies.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>datadir</strong> (<em>string</em>) – The root directory in which the data is stored (or should be downloaded)</p></li>
+<li><p><strong>dset_name</strong> (<em>string</em>) – The name of the dataset. This should be one of ‘cifar10’, ‘mnist’, ‘svhn’, ‘cifar100’, ‘breast-density’.</p></li>
+<li><p><strong>feature</strong> (<em>string</em>) – The modification that should be applied to the dataset. This should be one of ‘classimb’, ‘ood’, ‘duplicate’, ‘vanilla’</p></li>
+<li><p><strong>split_cfg</strong> (<em>dict</em>) – <dl class="simple">
+<dt>Contains information relating to the dataset splits that should be created. Some of the keys for this dictionary are as follows:</dt><dd><dl class="simple">
+<dt>’per_imbclass_train’: int</dt><dd><p>The number of examples in the train set for each imbalanced class (classimb)</p>
+</dd>
+<dt>’per_imbclass_val’: int</dt><dd><p>The number of examples in the validation set for each imbalanced class (classimb)</p>
+</dd>
+<dt>’per_imbclass_lake’: int</dt><dd><p>The number of examples in the lake set for each imbalanced class (classimb)</p>
+</dd>
+<dt>’per_class_train’: int</dt><dd><p>The number of examples in the train set for each balanced class (classimb)</p>
+</dd>
+<dt>’per_class_val’: int</dt><dd><p>The number of examples in the validation set for each balanced class (classimb)</p>
+</dd>
+<dt>’per_class_lake’: int</dt><dd><p>The number of examples in the lake set for each balanced class (classimb)</p>
+</dd>
+<dt>’sel_cls_idx’: list</dt><dd><p>A list of classes that are affected by class imbalance. (classimb)</p>
+</dd>
+<dt>’train_size’: int</dt><dd><p>The size of the train set (vanilla, duplicate)</p>
+</dd>
+<dt>’val_size’: int</dt><dd><p>The size of the validation set (vanilla, duplicate)</p>
+</dd>
+<dt>’lake_size’: int</dt><dd><p>The size of the lake set (vanilla, duplicate)</p>
+</dd>
+<dt>’num_rep’: int</dt><dd><p>The number of times to repeat a selection in the lake set (duplicate)</p>
+</dd>
+<dt>’lake_subset_repeat_size’: int</dt><dd><p>The size of the repeated selection in the lake set (duplicate)</p>
+</dd>
+<dt>’num_cls_imbalance’: int</dt><dd><p>The number of classes to randomly affect by class imbalance. (classimb)</p>
+</dd>
+<dt>’num_cls_idc’: int</dt><dd><p>The number of in-distribution classes to keep (ood)</p>
+</dd>
+<dt>’per_idc_train’: int</dt><dd><p>The number of in-distribution examples to keep in the train set per class (ood)</p>
+</dd>
+<dt>’per_idc_val’: int</dt><dd><p>The number of in-distribution examples to keep in the validation set per class (ood)</p>
+</dd>
+<dt>’per_idc_lake’: int</dt><dd><p>The number of in-distribution examples to keep in the lake set per class (ood)</p>
+</dd>
+<dt>’per_ood_train’: int</dt><dd><p>The number of OOD examples to keep in the train set per class (ood)</p>
+</dd>
+<dt>’per_ood_val’: int</dt><dd><p>The number of OOD examples to keep in the validation set per class (ood)</p>
+</dd>
+<dt>’per_ood_lake’: int</dt><dd><p>The number of OOD examples to keep in the lake set per class (ood)</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</p></li>
+<li><p><strong>augVal</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, the train set will also contain affected classes from the validation set. The default is False.</p></li>
+<li><p><strong>dataAug</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, the all but the test set will be affected by random cropping and random horizontal flip. The default is True.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Returns a train set, validation set, test set, lake set, and number of classes. Amount of returned items depends on specific configuration.
+Each set is an instance of torch.utils.data.Dataset</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple</p>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="module-trust.utils.utils">
+<span id="other-utilities"></span><h2>Other Utilities<a class="headerlink" href="#module-trust.utils.utils" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt id="trust.utils.utils.ConcatWithTargets">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.utils.</code><code class="sig-name descname">ConcatWithTargets</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/utils.html#ConcatWithTargets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.utils.ConcatWithTargets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides a convenience torch.utils.data.Dataset subclass that allows one to
+access a targets field while creating concatenations of two datasets.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset1</strong> (<em>torch.utils.data.Dataset</em>) – The first dataset to concatenate. Must have a targets field.</p></li>
+<li><p><strong>dataset2</strong> (<em>torch.utils.data.Dataset</em>) – The second dataset to concatenate. Must have a targets field.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="trust.utils.utils.LabeledToUnlabeledDataset">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.utils.</code><code class="sig-name descname">LabeledToUnlabeledDataset</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/utils.html#LabeledToUnlabeledDataset"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.utils.LabeledToUnlabeledDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides a convenience torch.utils.data.Dataset subclass that allows one to
+ignore the labels in a labeled dataset, thereby making it unlabeled.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>wrapped_dataset</strong> (<em>torch.utils.data.Dataset</em>) – The labeled dataset in which only the data will be returned.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="trust.utils.utils.SubsetWithTargets">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.utils.</code><code class="sig-name descname">SubsetWithTargets</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/utils.html#SubsetWithTargets"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.utils.SubsetWithTargets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides a convenience torch.utils.data.Dataset subclass that allows one to
+access a targets field while creating subsets of the dataset.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<em>torch.utils.data.Dataset</em>) – The dataset from which to pull a subset</p></li>
+<li><p><strong>indices</strong> (<em>sequence</em>) – A sequence of indices of the passed dataset from which to select a subset</p></li>
+<li><p><strong>labels</strong> (<em>sequence</em>) – A sequence of labels for each of the elements drawn for the subset. This
+sequence should be the same length as indices.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py class">
+<dt id="trust.utils.utils.SubsetWithTargetsSingleChannel">
+<em class="property">class </em><code class="sig-prename descclassname">trust.utils.utils.</code><code class="sig-name descname">SubsetWithTargetsSingleChannel</code><span class="sig-paren">(</span><em class="sig-param"><span class="o">*</span><span class="n">args</span></em>, <em class="sig-param"><span class="o">**</span><span class="n">kwds</span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/trust/utils/utils.html#SubsetWithTargetsSingleChannel"><span class="viewcode-link">[source]</span></a><a class="headerlink" href="#trust.utils.utils.SubsetWithTargetsSingleChannel" title="Permalink to this definition">¶</a></dt>
+<dd><p>Provides a convenience torch.utils.data.Dataset subclass that allows one to
+access a targets field while creating subsets of the dataset. Additionally,
+the single-channel images from the wrapped dataset are expanded to
+three channels for compatibility with three-chanel model input.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>dataset</strong> (<em>torch.utils.data.Dataset</em>) – The dataset from which to pull a subset</p></li>
+<li><p><strong>indices</strong> (<em>sequence</em>) – A sequence of indices of the passed dataset from which to select a subset</p></li>
+<li><p><strong>labels</strong> (<em>sequence</em>) – A sequence of labels for each of the elements drawn for the subset. This
+sequence should be the same length as indices.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+</div>
+<div class="section" id="models">
+<h2>Models<a class="headerlink" href="#models" title="Permalink to this headline">¶</a></h2>
+<dl class="simple">
+<dt>We have incorporated several neural network architectures in TRUST. Below is a list of neural network architectures:</dt><dd><ul class="simple">
+<li><p>densenet</p></li>
+<li><p>dla</p></li>
+<li><p>dla_simple</p></li>
+<li><p>dpn</p></li>
+<li><p>efficientnet</p></li>
+<li><p>googlenet</p></li>
+<li><p>lenet</p></li>
+<li><p>mobilenet</p></li>
+<li><p>mobilenetv2</p></li>
+<li><p>pnasnet</p></li>
+<li><p>preact_resnet</p></li>
+<li><p>regnet</p></li>
+<li><p>resnet</p></li>
+<li><p>resnext</p></li>
+<li><p>senet</p></li>
+<li><p>shufflenet</p></li>
+<li><p>shufflenetv2</p></li>
+<li><p>vgg</p></li>
+</ul>
+</dd>
+</dl>
+<p><strong>To use a custom model architecture, ensure the model architecture has the following:</strong></p>
+<p>The forward method should have two more variables:</p>
+<ol class="arabic">
+<li><p>A boolean variable <em>last</em> which -</p>
+<blockquote>
+<div><p><em>If *true</em>: returns the model output and the output of the second last layer</p>
+<p><em>If *false</em>: Returns the model output.</p>
+</div></blockquote>
+</li>
+<li><p>A boolean variable ‘freeze’ which -</p>
+<blockquote>
+<div><p><em>If *true</em>: disables the tracking of any calculations required to later calculate a gradient i.e skips gradient calculation over the weights</p>
+<p><em>If *false</em>: otherwise</p>
+</div></blockquote>
+</li>
+<li><p>get_embedding_dim() method which returns the number of hidden units in the last layer.</p></li>
+</ol>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+  
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+      
+      
+        <a href="trust.strategies.html" class="btn btn-neutral" title="Strategies" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left"></span> Previous</a>
+      
+    </div>
+  
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &copy; Copyright 2021, DECILE.
+
+    </p>
+  </div>
+  Built with <a href="http://sphinx-doc.org/">Sphinx</a> using a <a href="https://github.com/rtfd/sphinx_rtd_theme">theme</a> provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+
+  
+
+    <script type="text/javascript">
+        var DOCUMENTATION_OPTIONS = {
+            URL_ROOT:'../',
+            VERSION:'v0.1',
+            LANGUAGE:'None',
+            COLLAPSE_INDEX:false,
+            FILE_SUFFIX:'.html',
+            HAS_SOURCE:  true,
+            SOURCELINK_SUFFIX: '.txt'
+        };
+    </script>
+      <script type="text/javascript" src="../_static/jquery.js"></script>
+      <script type="text/javascript" src="../_static/underscore.js"></script>
+      <script type="text/javascript" src="../_static/doctools.js"></script>
+      <script type="text/javascript" src="../_static/language_data.js"></script>
+
+  
+
+  
+  
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

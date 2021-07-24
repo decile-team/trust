@@ -215,7 +215,8 @@ class DataHandler_UTKFace(Dataset):
         return len(self.X)
     
 class DuplicateChannels(object):
-    """Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor.
+    """
+    Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor.
     Converts a PIL Image or numpy.ndarray (H x W x C) in the range
     [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0]
     if the PIL Image belongs to one of the modes (L, LA, P, I, F, RGB, YCbCr, RGBA, CMYK, 1)
@@ -236,6 +237,7 @@ class DuplicateChannels(object):
         return self.__class__.__name__ + '()'
 
 def getOODtargets(targets, sel_cls_idx, ood_cls_id):
+    
     ood_targets = []
     targets_list = list(targets)
     for i in range(len(targets_list)):
@@ -247,6 +249,7 @@ def getOODtargets(targets, sel_cls_idx, ood_cls_id):
     return torch.Tensor(ood_targets)
     
 def create_ood_data(dset_name, fullset, testset, split_cfg, num_cls, augVal):
+    
     np.random.seed(42)
     train_idx = []
     val_idx = []
@@ -436,6 +439,71 @@ def create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal):
     return train_set, val_set, lake_set, selected_classes
 
 def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, dataAug=True):
+    """
+    Loads a common dataset with additional options to create class imbalances, out-of-distribution classes, and redundancies.
+
+    Parameters
+    ----------
+    datadir : string
+        The root directory in which the data is stored (or should be downloaded)
+    dset_name : string
+        The name of the dataset. This should be one of 'cifar10', 'mnist', 'svhn', 'cifar100', 'breast-density'.
+    feature : string
+        The modification that should be applied to the dataset. This should be one of 'classimb', 'ood', 'duplicate', 'vanilla'
+    split_cfg : dict
+        Contains information relating to the dataset splits that should be created. Some of the keys for this dictionary are as follows:
+            'per_imbclass_train': int
+                The number of examples in the train set for each imbalanced class (classimb)
+            'per_imbclass_val': int
+                The number of examples in the validation set for each imbalanced class (classimb)
+            'per_imbclass_lake': int
+                The number of examples in the lake set for each imbalanced class (classimb)
+            'per_class_train': int
+                The number of examples in the train set for each balanced class (classimb)
+            'per_class_val': int
+                The number of examples in the validation set for each balanced class (classimb)
+            'per_class_lake': int
+                The number of examples in the lake set for each balanced class (classimb)
+            'sel_cls_idx': list
+                A list of classes that are affected by class imbalance. (classimb)
+            'train_size': int
+                The size of the train set (vanilla, duplicate)
+            'val_size': int
+                The size of the validation set (vanilla, duplicate)
+            'lake_size': int
+                The size of the lake set (vanilla, duplicate)
+            'num_rep': int
+                The number of times to repeat a selection in the lake set (duplicate)
+            'lake_subset_repeat_size': int
+                The size of the repeated selection in the lake set (duplicate)
+            'num_cls_imbalance': int
+                The number of classes to randomly affect by class imbalance. (classimb)
+            'num_cls_idc': int
+                The number of in-distribution classes to keep (ood)
+            'per_idc_train': int
+                The number of in-distribution examples to keep in the train set per class (ood)
+            'per_idc_val': int
+                The number of in-distribution examples to keep in the validation set per class (ood)
+            'per_idc_lake': int
+                The number of in-distribution examples to keep in the lake set per class (ood)
+            'per_ood_train': int
+                The number of OOD examples to keep in the train set per class (ood)
+            'per_ood_val': int
+                The number of OOD examples to keep in the validation set per class (ood)
+            'per_ood_lake': int
+                The number of OOD examples to keep in the lake set per class (ood)         
+    augVal : bool, optional
+        If True, the train set will also contain affected classes from the validation set. The default is False.
+    dataAug : bool, optional
+        If True, the all but the test set will be affected by random cropping and random horizontal flip. The default is True.
+
+    Returns
+    -------
+    tuple
+        Returns a train set, validation set, test set, lake set, and number of classes. Amount of returned items depends on specific configuration.
+        Each set is an instance of torch.utils.data.Dataset
+    """
+    
     if(not(os.path.exists(datadir))):
         os.mkdir(datadir)
 
