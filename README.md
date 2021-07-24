@@ -47,6 +47,8 @@ TRUST is a toolkit which provides support for various targeted selection algorit
 
 ## Tutorials
 1. [Rare Classes Demo](https://colab.research.google.com/drive/1iidYqUu2Vkv_9lbIwvuwWKYPkhHt-vHR?usp=sharing)
+
+
 You can also download the .ipynb files from the tutorials folder.
 
 ## Acknowledgment
