@@ -10,7 +10,7 @@ class SMI(Strategy):
     
     """
     This strategy implements the Submodular Mutual Information (SMI) selection paradigm discuss in the paper 
-    SIMILAR: Submodular Information Measures Based Active Learning In Realistic Scenarios. In this selection 
+    SIMILAR: Submodular Information Measures Based Active Learning In Realistic Scenarios :footcite:`kothawade2021similar`. In this selection 
     paradigm, points from the unlabeled dataset are chosen in such a way that the submodular mutual information 
     between this set of points and a provided query set is maximized. Doing so allows a practitioner to select 
     points from an unlabeled set that are SIMILAR to points that they have provided in a active learning query.
@@ -20,7 +20,7 @@ class SMI(Strategy):
     SMI function used) are formed from these embeddings based on a similarity metric. Once these similarity kernels 
     are formed, they are used in computing the value of each submodular mutual information function. Hence, common 
     techniques for submodular maximization subject to a cardinality constraint can be used, such as the naive greedy 
-    algorithm, the lazy greed algorithm, and so forth.
+    algorithm, the lazy greedy algorithm, and so forth.
     
     In this framework, we set the cardinality constraint to be the active learning selection budget; hence, a list of 
     indices with a total length less than or equal to this cardinality constraint will be returned. Depending on the 
@@ -34,7 +34,7 @@ class SMI(Strategy):
     the unlabeled dataset ONLY. Graph Cut Mutual Information (gcmi), Log-Determinant Mutual Information (logdetmi), and 
     Concave-Over-Modular Mutual Information (com) are all obtained by applying the usual submodular function under this 
     definition. For more information-theoretic discussion, consider referring to the paper Submodular Combinatorial 
-    Information Measures with Applications in Machine Learning.
+    Information Measures with Applications in Machine Learning :footcite:`iyer2021submodular`.
     
     Parameters
     ----------
@@ -105,7 +105,19 @@ class SMI(Strategy):
         self.query_dataset = query_dataset
 
     def select(self, budget):
+        """
+        Selects a set of points from the unlabeled dataset to label based on this strategy's methodology.
         
+        Parameters
+        ----------
+        budget: int
+            Number of points to choose from the unlabeled dataset
+        
+        Returns
+        ----------
+        chosen: list
+            List of selected data point indices with respect to the unlabeled dataset
+        """ 
 
         #Get hyperparameters from args dict
         optimizer = self.args['optimizer'] if 'optimizer' in self.args else 'NaiveGreedy'

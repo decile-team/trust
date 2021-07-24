@@ -10,7 +10,7 @@ class SCG(Strategy):
     
     """
     This strategy implements the Submodular Conditional Gain (SCG) selection paradigm discuss in the paper 
-    SIMILAR: Submodular Information Measures Based Active Learning In Realistic Scenarios. In this selection 
+    SIMILAR: Submodular Information Measures Based Active Learning In Realistic Scenarios :footcite:`kothawade2021similar`. In this selection 
     paradigm, points from the unlabeled dataset are chosen in such a way that the submodular conditional gain 
     between this set of points and a provided private set is maximized. Doing so allows a practitioner to select 
     points from an unlabeled set that are dissimilar to points provided in the private set.
@@ -19,7 +19,7 @@ class SCG(Strategy):
     and the private set. Once these embeddings are formed, similarity kernels are formed from these 
     embeddings based on a similarity metric. Once these similarity kernels are formed, they are used in computing the value 
     of each submodular conditional gain function. Hence, common techniques for submodular maximization subject to a 
-    cardinality constraint can be used, such as the naive greedy algorithm, the lazy greed algorithm, and so forth.
+    cardinality constraint can be used, such as the naive greedy algorithm, the lazy greedy algorithm, and so forth.
     
     In this framework, we set the cardinality constraint to be the active learning selection budget; hence, a list of 
     indices with a total length less than or equal to this cardinality constraint will be returned. Depending on the 
@@ -28,7 +28,7 @@ class SCG(Strategy):
     Currently, two submodular conditional gain functions are implemented: 'flcg', 'gccg', and 'logdetcg'. Each
     function is obtained by applying the definition of a submodular conditional gain function using common 
     submodular functions. For more information-theoretic discussion, consider referring to the paper Submodular Combinatorial 
-    Information Measures with Applications in Machine Learning.
+    Information Measures with Applications in Machine Learning :footcite:`iyer2021submodular`.
     
     Parameters
     ----------
@@ -98,17 +98,17 @@ class SCG(Strategy):
 
     def select(self, budget):
         """
-        Select next set of points
+        Selects a set of points from the unlabeled dataset to label based on this strategy's methodology.
         
         Parameters
         ----------
         budget: int
-            Number of indexes to be returned for next set
+            Number of points to choose from the unlabeled dataset
         
         Returns
         ----------
         chosen: list
-            List of selected data point indexes with respect to unlabeled_x
+            List of selected data point indices with respect to the unlabeled dataset
         """ 
 
         #Get hyperparameters from args dict

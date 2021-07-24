@@ -215,7 +215,8 @@ class DataHandler_UTKFace(Dataset):
         return len(self.X)
     
 class DuplicateChannels(object):
-    """Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor.
+    """
+    Convert a ``PIL Image`` or ``numpy.ndarray`` to tensor.
     Converts a PIL Image or numpy.ndarray (H x W x C) in the range
     [0, 255] to a torch.FloatTensor of shape (C x H x W) in the range [0.0, 1.0]
     if the PIL Image belongs to one of the modes (L, LA, P, I, F, RGB, YCbCr, RGBA, CMYK, 1)
