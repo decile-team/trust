@@ -42,6 +42,7 @@ class SCMI(Strategy):
         embedding_type = self.args['embedding_type'] if 'embedding_type' in self.args else "gradients"
         if(embedding_type=="features"):
             layer_name = self.args['layer_name'] if 'layer_name' in self.args else "avgpool"
+        keep_embedding = self.args['keep_embedding'] if 'keep_embedding' in self.args else False
 
         #Compute Embeddings
         if(embedding_type == "gradients"):
@@ -54,6 +55,11 @@ class SCMI(Strategy):
             private_embedding = self.get_feature_embedding(self.private_dataset, False, layer_name)
         else:
             raise ValueError("Provided representation must be one of gradients or features")
+
+        if(keep_embedding):
+            self.unlabeled_data_embedding = unlabeled_data_embedding
+            self.private_embedding = private_embedding
+            self.query_embedding = query_embedding
 
         #Compute image-image kernel
         data_sijs = submodlib.helper.create_kernel(X=unlabeled_data_embedding.cpu().numpy(), metric=metric, method="sklearn")

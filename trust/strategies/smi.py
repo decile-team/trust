@@ -39,7 +39,8 @@ class SMI(Strategy):
         embedding_type = self.args['embedding_type'] if 'embedding_type' in self.args else "gradients"
         if(embedding_type=="features"):
             layer_name = self.args['layer_name'] if 'layer_name' in self.args else "avgpool"
-
+        keep_embedding = self.args['keep_embedding'] if 'keep_embedding' in self.args else False
+        
         #Compute Embeddings
         if(embedding_type == "gradients"):
             unlabeled_data_embedding = self.get_grad_embedding(self.unlabeled_dataset, True, gradType)
@@ -50,6 +51,10 @@ class SMI(Strategy):
         else:
             raise ValueError("Provided representation must be one of gradients or features")
         
+        if(keep_embedding):
+            self.unlabeled_data_embedding = unlabeled_data_embedding
+            self.query_embedding = query_embedding
+            
         #Compute image-image kernel
         if(self.args['smi_function']=='fl1mi' or self.args['smi_function']=='logdetmi'): 
             data_sijs = submodlib.helper.create_kernel(X=unlabeled_data_embedding.cpu().numpy(), metric=metric, method="sklearn")
