@@ -30,9 +30,9 @@ TRUST is a toolkit which provides support for various targeted selection algorit
 5) "torch >= 1.4.0",
 6) "submodlib"
 
-## Demo Notebooks
+## Tutorials
 1. [Rare Classes Demo](https://colab.research.google.com/drive/1iidYqUu2Vkv_9lbIwvuwWKYPkhHt-vHR?usp=sharing)
-
+You can also download the .ipynb files from the tutorials folder.
 
 ## Acknowledgment
 This library takes inspiration, builds upon, and uses pieces of code from several open source codebases. This includes [Submodlib](https://github.com/decile-team/submodlib) for submodular optimization.
