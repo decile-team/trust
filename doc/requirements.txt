@@ -1,0 +1,12 @@
+sphinxcontrib-bibtex>=2.3.0
+-i https://test.pypi.org/simple/ 
+--extra-index-url https://pypi.org/simple/
+submodlib 
+multipledispatch==0.6.0
+scikit-learn==0.23.0
+numpy>=1.14.2
+scipy>=1.0.0
+torch>=1.4.0
+tqdm>=4.24.0
+pandas
+torchvision

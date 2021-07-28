@@ -5,7 +5,35 @@
     </br>
 </p>
 
+<p align="center">
+    <a href="https://github.com/decile-team/trust/blob/main/LICENSE">
+        <img alt="GitHub license" src="https://img.shields.io/github/license/decile-team/trust"></a>
+    </a>
+    <a href="https://decile.org/">
+        <img alt="Decile" src="https://img.shields.io/badge/website-online-green">
+    </a>
+    <a href="https://trust.readthedocs.io/en/latest/index.html">
+        <img alt="Documentation" src="https://img.shields.io/badge/docs-passing-brightgreen">
+    </a>
+    <a href="#">
+        <img alt="GitHub Stars" src="https://img.shields.io/github/stars/decile-team/trust">
+    </a>
+    <a href="#">
+        <img alt="GitHub Forks" src="https://img.shields.io/github/forks/decile-team/trust">
+    </a>
+    <a href="https://github.com/decile-team/trust/issues">
+        <img alt="GitHub issues" src="https://img.shields.io/github/issues/decile-team/trust">
+    </a>
+</p>
+
 # About TRUST
+
+<p align="center">
+    <br>
+        &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+        <img src="https://github.com/decile-team/trust/blob/main/tss.png" width="763" height="417"/>
+    </br>
+</p>
 
 Efficiently search and mine for specific (targeted) classes/slices in your dataset to improve model performance and personalize your models.
 TRUST supports a number of algorithms for targeted selection which provides a mechanism to include additional information via data to priortize the semantics of the selection.
@@ -30,9 +58,16 @@ TRUST is a toolkit which provides support for various targeted selection algorit
 5) "torch >= 1.4.0",
 6) "submodlib"
 
-## Demo Notebooks
-1. [Rare Classes Demo](https://colab.research.google.com/drive/1iidYqUu2Vkv_9lbIwvuwWKYPkhHt-vHR?usp=sharing)
 
+## Documentation
+Learn more about TRUST by reading our [documentation](https://trust.readthedocs.io/en/latest/index.html).
+
+## Tutorials
+1. [Rare Classes Demo](https://colab.research.google.com/drive/1iidYqUu2Vkv_9lbIwvuwWKYPkhHt-vHR?usp=sharing)
+2. [Fairness Demo](https://colab.research.google.com/drive/1STgb2cBzKPmXMChlq5Zv2VMhLHqUssyr?usp=sharing)
+
+
+You can also download the .ipynb files from the tutorials folder.
 
 ## Acknowledgment
 This library takes inspiration, builds upon, and uses pieces of code from several open source codebases. This includes [Submodlib](https://github.com/decile-team/submodlib) for submodular optimization.
