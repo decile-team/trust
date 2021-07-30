@@ -3,7 +3,7 @@ import time
 from matplotlib import pyplot as plt
 
 def tsne_smi(lake_set, lake_targets, query_set, query_targets, selected_idx, device="cpu"):
-    colors = ['blue', 'purple', 'turquoise', 'green', 'red', 'lime', 'cyan', 'orange', 'gray']
+    colors = ['blue', 'purple', 'turquoise', 'green', 'red', 'lime', 'cyan', 'orange', 'gray', 'pink']
     if(device=="cpu"): from sklearn.manifold import TSNE
     if(device=="cuda"): from tsnecuda import TSNE
     lake_tsne = TSNE(n_components=2).fit_transform(lake_set)
