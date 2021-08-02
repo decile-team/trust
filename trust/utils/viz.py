@@ -1,10 +1,11 @@
 import numpy as np
-from sklearn.manifold import TSNE
 import time
 from matplotlib import pyplot as plt
 
-def tsne_smi(lake_set, lake_targets, query_set, query_targets, selected_idx, savePath=""):
-    colors = ['blue', 'purple', 'turquoise', 'green', 'red', 'lime', 'cyan', 'orange', 'gray']
+def tsne_smi(lake_set, lake_targets, query_set, query_targets, selected_idx, device="cpu"):
+    colors = ['blue', 'purple', 'turquoise', 'green', 'red', 'lime', 'cyan', 'orange', 'gray', 'pink']
+    if(device=="cpu"): from sklearn.manifold import TSNE
+    if(device=="cuda"): from tsnecuda import TSNE
     lake_tsne = TSNE(n_components=2).fit_transform(lake_set)
     query_tsne = TSNE(n_components=2).fit_transform(query_set)
     lake_idx = list(set(list(range(len(lake_tsne)))) - set(selected_idx))
