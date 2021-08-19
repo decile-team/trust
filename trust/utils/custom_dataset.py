@@ -406,7 +406,7 @@ def getVanillaData(dset_name, fullset, split_cfg):
         val_set = DataHandler_CIFAR10(X_val, y_val, False)
     return X_tr, y_tr, X_val, y_val, X_unlabeled[:split_cfg['lake_size']], y_unlabeled[:split_cfg['lake_size']], train_set, val_set, lake_set
 
-def create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal):
+def create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal):
     np.random.seed(42)
     train_idx = []
     val_idx = []
@@ -414,19 +414,12 @@ def create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal):
     selected_classes=split_cfg['sel_cls_idx']
     for i in range(num_cls): #all_classes
         full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
-        if(i in selected_classes):
-            class_train_idx = list(np.random.choice(np.array(full_idx_class), size=split_cfg['per_imbclass_train'][i], replace=False))
-            remain_idx = list(set(full_idx_class) - set(class_train_idx))
-            class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_val'][i], replace=False))
-            remain_idx = list(set(remain_idx) - set(class_val_idx))
-            class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_lake'][i], replace=False))
-        else:
-            class_train_idx = list(np.random.choice(np.array(full_idx_class), size=split_cfg['per_class_train'][i], replace=False))
-            remain_idx = list(set(full_idx_class) - set(class_train_idx))
-            class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_val'][i], replace=False))
-            remain_idx = list(set(remain_idx) - set(class_val_idx))
-            class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_lake'][i], replace=False))
-    
+        class_train_idx = list(np.random.choice(np.array(full_idx_class), size=split_cfg['per_class_train'][i], replace=False))
+        remain_idx = list(set(full_idx_class) - set(class_train_idx))
+        class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_val'][i], replace=False))
+        remain_idx = list(set(remain_idx) - set(class_val_idx))
+        class_lake_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_class_lake'][i], replace=False))
+
         train_idx += class_train_idx
         if(augVal and (i in selected_classes)): #augment with samples only from the imbalanced classes
             train_idx += class_val_idx
@@ -518,7 +511,10 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
         fullset = torchvision.datasets.CIFAR10(root=datadir, train=True, download=True, transform=cifar_transform)
         test_set = torchvision.datasets.CIFAR10(root=datadir, train=False, download=True, transform=cifar_test_transform)
         if(feature=="classimb"):
-            train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+            if("sel_cls_idx" in split_cfg):
+                train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+            else:
+                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
@@ -546,7 +542,10 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
         test_set = torchvision.datasets.MNIST(root=datadir, train=False, download=True, transform=mnist_test_transform)
         # fullset.data = torch.repeat_interleave(fullset.data.unsqueeze(1), 3, 1).float()
         if(feature=="classimb"):
-            train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+            if("sel_cls_idx" in split_cfg):
+                train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+            else:
+                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             print("MNIST Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
@@ -573,8 +572,11 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
         
         fullset = torchvision.datasets.SVHN(root=datadir, split="train", download=True, transform=SVHN_transform)
         test_set = torchvision.datasets.SVHN(root=datadir, split="test", download=True, transform=SVHN_test_transform)
-        if(feature=="classimb"):   
-            train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+        if(feature=="classimb"):
+            if("sel_cls_idx" in split_cfg):
+                train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+            else:
+                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             print("SVHN Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
@@ -600,7 +602,10 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
         fullset = torchvision.datasets.CIFAR100(root=datadir, train=True, download=True, transform=cifar100_transform)
         test_set = torchvision.datasets.CIFAR100(root=datadir, train=False, download=True, transform=cifar100_transform)
         if(feature=="classimb"):
-            train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+            if("sel_cls_idx" in split_cfg):
+                train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+            else:
+                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             print("CIFAR-100 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
@@ -640,6 +645,6 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
         fullset = datasets.ImageFolder(os.path.join(datadir, 'train'), data_transforms['train'])
         test_set = datasets.ImageFolder(os.path.join(datadir, 'test'), data_transforms['test'])
         if(feature=="classimb"):
-            train_set, val_set, lake_set, imb_cls_idx = create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal)
+            train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             print("Breast-density Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
