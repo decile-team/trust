@@ -253,7 +253,7 @@ def load_biodataset_custom(datadir, dset_name, feature, split_cfg, augVal=False,
         if(feature=="classimb"):
             train_set, val_set, lake_set, imb_cls_idx = create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal)
             print(dset_name+" Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
-            return train_set, val_set, lake_set, test_set, imb_cls_idx, num_cls
+            return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         elif(feature=="longtail"):
             train_set, val_set, lake_set, imb_cls_idx = create_longtail(dset_name, fullset, split_cfg, num_cls, augVal)
             print(dset_name+" Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))

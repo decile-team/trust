@@ -1,5 +1,8 @@
 import torch
 from torch.utils.data import Dataset
+from sklearn.preprocessing import label_binarize
+import numpy as np
+from sklearn.metrics import roc_curve, auc, confusion_matrix, precision_recall_curve, roc_auc_score
 
 class SubsetWithTargets(Dataset):
     """

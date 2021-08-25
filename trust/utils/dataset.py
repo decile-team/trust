@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 from torch.utils.data import Dataset
 from .info import INFO
+import torch
 
 
 class MedMNIST(Dataset):
@@ -43,6 +44,7 @@ class MedMNIST(Dataset):
             self.data = npz_file['train_images']
             self.targets = npz_file['train_labels']
             self.targets = np.squeeze(self.targets)
+
         elif self.split == 'val':
             self.data = npz_file['val_images']
             self.targets = npz_file['val_labels']
@@ -52,7 +54,7 @@ class MedMNIST(Dataset):
             self.targets = npz_file['test_labels']
             self.targets = np.squeeze(self.targets)
             
-        if self.flag == 'octmnist':
+        if self.flag == 'octmnist' or self.flag == 'pneumoniamnist' or self.flag == 'organmnist_axial':
             new_data = []
             for i in self.data:
                 i = np.stack((i,)*3,axis=-1)
@@ -68,7 +70,7 @@ class MedMNIST(Dataset):
 
         if self.target_transform is not None:
             target = self.target_transform(target)
-
+        
         return data, target
 
     def __len__(self):
