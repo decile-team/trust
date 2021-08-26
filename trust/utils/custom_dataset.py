@@ -535,7 +535,7 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
         num_cls=10
         mnist_test_transform = transforms.Compose([transforms.Resize((32, 32)), transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
         if(dataAug):
-            mnist_transform = transforms.Compose([transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(), transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
+            mnist_transform = transforms.Compose([transforms.RandomCrop(32, padding=4), transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
         else:
             mnist_transform = mnist_test_transform
         fullset = torchvision.datasets.MNIST(root=datadir, train=True, download=True, transform=mnist_transform)
