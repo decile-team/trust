@@ -103,3 +103,77 @@ class LabeledToUnlabeledDataset(Dataset):
 
     def __len__(self):
         return len(self.wrapped_dataset)
+
+def get_roc_auc(target, output, n_classes):
+    """
+    Function to compute false positive rate(fpr), true positive rate(tpr), and area under ROC(Reciever Operator Characteristics) curve for 
+    a list of predicted outputs and ground truth targets. The output is in the form of three dictionaries with class numbers as keys and the values
+    of fpr, tpr, area under ROC curve. 
+
+    Parameters
+    ----------
+    target: numpy.ndarray
+        The ground truth label of the set
+    output: sequence
+        Predicted output of the set
+    n_classes: int
+        The number of classes in the dataset
+    """
+    target = label_binarize(target, classes=list(range(n_classes)))
+    output = np.array(output)
+    fpr = dict()
+    tpr = dict()
+    roc_auc = dict()
+    for i in range(n_classes):
+        fpr[i], tpr[i], _ = roc_curve(target[:,i],output[:,i])
+        roc_auc[i] = auc(fpr[i], tpr[i])
+        fpr[i] = fpr[i].tolist()
+        tpr[i] = tpr[i].tolist()
+        roc_auc[i] = roc_auc[i].tolist()
+    return fpr,tpr,roc_auc
+
+def get_pr_auc(target, output, n_classes):
+    """
+    Function to compute precision, recall, and area under Precision Recall curve for a list of predicted outputs and ground truth targets. 
+    The output is in the form of three dictionaries with class numbers as keys and the values of precision, recall, area under precision recall curve. 
+
+    Parameters
+    ----------
+    target: numpy.ndarray
+        The ground truth label of the set
+    output: sequence
+        Predicted output of the set
+    n_classes: int
+        The number of classes in the dataset
+    """
+    target = label_binarize(target, classes=list(range(n_classes)))
+    output = np.array(output)
+    precision = dict()
+    recall = dict()
+    aupr = dict()
+    for i in range(n_classes):
+        precision[i], recall[i], _ = precision_recall_curve(target[:,i],output[:,i])
+        aupr[i] = auc(recall[i], precision[i])
+        precision[i] = precision[i].tolist()
+        recall[i] = recall[i].tolist()
+        aupr[i] = aupr[i].tolist()
+    return precision, recall, aupr
+
+def get_macro_roc_auc(target, output, n_classes):
+    """
+    Function to compute macro average ROC(Reciever Operater Characteristics) for a list of predicted outputs and ground truth targets. 
+    The output is in the form of three dictionaries with class numbers as keys and the values
+    of precision, recall, area under precision recall curve. 
+
+    Parameters
+    ----------
+    target: numpy.ndarray
+        The ground truth label of the set
+    output: sequence
+        Predicted output of the set
+    n_classes: int
+        The number of classes in the dataset
+    """
+    target = label_binarize(target,classes=list(range(n_classes)))
+    output = np.array(output)
+    return roc_auc_score(target,output,average="macro")
