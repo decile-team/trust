@@ -77,7 +77,7 @@ TRUST is created and maintained by [Suraj Kothawade](https://personal.utdallas.e
 
 ## Publications
 
-[1] Kothawade S, Kaushal V, Ramakrishnan G, Bilmes J, Iyer R. PRISM: A Unified Framework of Parameterized Submodular Information Measures for Targeted Data Subset Selection and Summarization. To Appear In 36th AAAI Conference on Artificial Intelligence, AAAI 2022
+[1] Kothawade S, Kaushal V, Ramakrishnan G, Bilmes J, Iyer R. PRISM: A Rich Class of Parameterized Submodular Information Measures for Guided Subset Selection. To Appear In 36th AAAI Conference on Artificial Intelligence, AAAI 2022
 
 [2] Iyer, R., Khargoankar, N., Bilmes, J. and Asanani, H., 2021, March. Submodular combinatorial information measures with applications in machine learning. In Algorithmic Learning Theory (pp. 722-754). PMLR.
 
