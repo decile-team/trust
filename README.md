@@ -77,10 +77,8 @@ TRUST is created and maintained by [Suraj Kothawade](https://personal.utdallas.e
 
 ## Publications
 
-[1] Iyer, R., Khargoankar, N., Bilmes, J. and Asanani, H., 2021, March. Submodular combinatorial information measures with applications in machine learning. In Algorithmic Learning Theory (pp. 722-754). PMLR.
+[1] Kothawade S, Kaushal V, Ramakrishnan G, Bilmes J, Iyer R. PRISM: A Rich Class of Parameterized Submodular Information Measures for Guided Subset Selection. To Appear In 36th AAAI Conference on Artificial Intelligence, AAAI 2022
 
-
-[2] Kaushal V, Kothawade S, Ramakrishnan G, Bilmes J, Iyer R. PRISM: A Unified Framework of Parameterized Submodular Information Measures for Targeted Data Subset Selection and Summarization. arXiv preprint arXiv:2103.00128. 2021 Feb 27.
-
+[2] Iyer, R., Khargoankar, N., Bilmes, J. and Asanani, H., 2021, March. Submodular combinatorial information measures with applications in machine learning. In Algorithmic Learning Theory (pp. 722-754). PMLR.
 
 [3] Anupam Gupta and Roie Levin. The online submodular cover problem. In ACM-SIAM Symposiumon Discrete Algorithms, 2020
