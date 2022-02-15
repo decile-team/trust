@@ -13,7 +13,7 @@ from torch.utils.data import Dataset, random_split
 from torchvision import datasets, transforms
 import PIL.Image as Image
 from .utils import *
-from .medmnist import PathMNIST, ChestMNIST, DermaMNIST, OCTMNIST, PneumoniaMNIST, RetinaMNIST, BreastMNIST, OrganMNISTAxial, OrganMNISTCoronal, OrganMNISTSagittal
+from .medmnist import PathMNIST, ChestMNIST, DermaMNIST, OCTMNIST, PneumoniaMNIST, RetinaMNIST, BreastMNIST, OrganMNISTAxial, OrganMNISTCoronal, OrganMNISTSagittal, TissueMNIST
 np.random.seed(42)
 torch.manual_seed(42)
 
@@ -30,6 +30,7 @@ name_to_class = {
         "axial_organmnist": (OrganMNISTAxial,11),
         "coronal_organmnist": (OrganMNISTCoronal,11),
         "sagittal_organmnist": (OrganMNISTSagittal,11),
+        "tissuemnist":(TissueMNIST,8),
     }
 
 

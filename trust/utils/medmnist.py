@@ -144,3 +144,6 @@ class OrganMNISTCoronal(MedMNIST):
 
 class OrganMNISTSagittal(MedMNIST):
     flag = "organmnist_sagittal"
+
+class TissueMNIST(MedMNIST):
+    flag = "tissuemnist"
