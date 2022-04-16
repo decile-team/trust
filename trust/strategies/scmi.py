@@ -155,7 +155,7 @@ class SCMI(Strategy):
         #Compute image-image kernel
         data_sijs = submodlib.helper.create_kernel(X=unlabeled_data_embedding.cpu().numpy(), metric=metric, method="sklearn")
         #Compute query-query kernel
-        if(self.args['scmi_function']=='logdetmi'):
+        if(self.args['scmi_function']=='logdetcmi'):
             query_query_sijs = submodlib.helper.create_kernel(X=query_embedding.cpu().numpy(), metric=metric, method="sklearn")
             private_private_sijs = submodlib.helper.create_kernel(X=private_embedding.cpu().numpy(), metric=metric, method="sklearn")
             query_private_sijs = submodlib.helper.create_kernel(X=private_embedding.cpu().numpy(), X_rep=query_embedding.cpu().numpy(), metric=metric, method="sklearn")
