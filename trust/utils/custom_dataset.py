@@ -547,6 +547,8 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
             else:
                 train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             print("MNIST Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            test_set = SubsetWithTargetsSingleChannel(
+                test_set, list([i for i in range(len(test_set))]), test_set.labels)
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
             train_set, val_set, test_set, lake_set, ood_cls_idx = create_ood_data(dset_name, fullset, test_set, split_cfg, num_cls, augVal)
