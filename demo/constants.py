@@ -1,0 +1,1 @@
+demo_video_path = "/Users/badri/Desktop/trust/demo/sample.mov"
