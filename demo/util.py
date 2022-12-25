@@ -1,3 +1,8 @@
+import sys
+
+sys.path.append("..")
+
+
 from trust.utils.utils import *
 import time
 import copy
