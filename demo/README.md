@@ -23,7 +23,8 @@ Finally run the app using the following command:
 python3 app.py
 ```
 
-## How to use
+## How to use (Video)
+![video](demo_video.mov "Video")
 
 The app will open up in port 9000, open it in your browser.
 You can find a "How to use?" button in the app, which will guide you through the process. (Demo of demo :P)
