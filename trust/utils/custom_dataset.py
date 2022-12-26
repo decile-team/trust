@@ -254,8 +254,12 @@ def create_ood_data(dset_name, fullset, testset, split_cfg, num_cls, augVal):
     train_idx = []
     val_idx = []
     lake_idx = []
-    test_idx = [] 
-    selected_classes = np.array(list(range(split_cfg['num_cls_idc'])))
+    test_idx = []
+    if 'idc_classes_frontend' in split_cfg:
+        selected_classes = split_cfg['idc_classes_frontend']
+    else:
+        selected_classes = np.array(list(range(split_cfg['num_cls_idc'])))
+        
     for i in range(num_cls): #all_classes
         if(dset_name=="mnist"):
             full_idx_class = list(torch.where(torch.Tensor(fullset.targets.float()) == i)[0].cpu().numpy())
@@ -302,8 +306,11 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal):
     train_idx = []
     val_idx = []
     lake_idx = []
-    if(dset_name=="mnist"): selected_classes=np.array([5,8])
-    else: selected_classes = np.random.choice(np.arange(num_cls), size=split_cfg['num_cls_imbalance'], replace=False) #classes to imbalance
+    if 'sel_cls_idx_frontend' in split_cfg:
+        selected_classes = np.array(split_cfg['sel_cls_idx_frontend'])
+    else:
+        if(dset_name=="mnist"): selected_classes=np.array([5,8])
+        else: selected_classes = np.random.choice(np.arange(num_cls), size=split_cfg['num_cls_imbalance'], replace=False) #classes to imbalance
     for i in range(num_cls): #all_classes
         if(dset_name=="mnist"):
             full_idx_class = list(torch.where(torch.Tensor(fullset.targets.float()) == i)[0].cpu().numpy())
@@ -547,6 +554,8 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
             else:
                 train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             print("MNIST Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
+            test_set = SubsetWithTargetsSingleChannel(
+                test_set, list([i for i in range(len(test_set))]), torch.Tensor(test_set.targets.float())[list([i for i in range(len(test_set))])])
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
             train_set, val_set, test_set, lake_set, ood_cls_idx = create_ood_data(dset_name, fullset, test_set, split_cfg, num_cls, augVal)
