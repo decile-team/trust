@@ -1,1 +1,1 @@
-demo_video_path = "/Users/badri/Desktop/trust/demo/sample.mov"
+demo_video_path = "/Users/badri/Desktop/trust/demo/demo_video.mov"

@@ -2,7 +2,7 @@ import gradio as gr
 from util import run_targeted_selection
 from constants import *
 
-
+gr.close_all()
 title = "Trust Demo"
 
 
