@@ -31,7 +31,7 @@ python3 app.py
 
 ## How to use (Video)
 
-https://user-images.githubusercontent.com/38362966/209561934-73514537-f4ce-490f-a5a3-2be59910ea2b.mov
+https://user-images.githubusercontent.com/12762976/213306445-ba750bce-f85b-465b-98bf-5109530e67eb.mp4
 
 
 The app will open up in port 9000, open it in your browser.
