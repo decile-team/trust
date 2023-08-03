@@ -251,8 +251,8 @@ def load_biodataset_custom(datadir, dset_name, feature, split_cfg, augVal=False,
         }
 
         Dataclass = name_to_class[dset_name][0]
-        fullset = Dataclass(root=datadir,split="train",transform=data_transforms['train'],download=False)
-        test_set = Dataclass(root=datadir,split="test",transform=data_transforms['test'],download=False)
+        fullset = Dataclass(root=datadir,split="train",transform=data_transforms['train'],download=True)
+        test_set = Dataclass(root=datadir,split="test",transform=data_transforms['test'],download=True)
         
         if(feature=="classimb"):
             train_set, val_set, lake_set, imb_cls_idx = create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal)
