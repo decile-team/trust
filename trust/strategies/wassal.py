@@ -143,7 +143,7 @@ class WASSAL(Strategy):
         overall_loss=[]
         
         # Loop over the datasets 10 times
-        for i in range(10):
+        for i in range(100):
             simplex_target.grad = None  # Reset gradients at the beginning of each epoch
             batch_idx = 0
             # Initialize loss_avg as a tensor with requires_grad=True
@@ -155,8 +155,8 @@ class WASSAL(Strategy):
                 
                 # Get the features using the pretrained model
                 if(embedding_type == "features"):
-                    unlabeled_data_features = self.get_feature_embedding(self.unlabeled_imgs, False, layer_name)
-                    target_features = self.get_feature_embedding(self.target_imgs, False, layer_name)
+                    unlabeled_data_features = self.get_feature_embedding(unlabeled_imgs, True, layer_name)
+                    target_features = self.get_feature_embedding(target_imgs, True, layer_name)
                     
                     
                 simplex_batch_target = simplex_target[batch_idx * unlabeled_dataloader.batch_size : (batch_idx + 1) * unlabeled_dataloader.batch_size]
@@ -180,8 +180,8 @@ class WASSAL(Strategy):
             
            
             with torch.no_grad():
-                simplex_target_new = self._proj_simplex(simplex_target)
-            simplex_target = simplex_target_new.clone().detach().requires_grad_(True)
+                simplex_target.data = self._proj_simplex(simplex_target.data)
+            
             print("Avg loss: {}".format(loss_avg))
 
         sorted_simplex,indices=torch.sort(simplex_target,descending=True)

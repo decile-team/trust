@@ -297,11 +297,12 @@ def create_ood_data(dset_name, fullset, testset, split_cfg, num_cls, augVal):
 
     return train_set, val_set, test_set, lake_set, selected_classes
 
-def create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal):
+def create_class_imb(dset_name, fullset, test_set,split_cfg, num_cls, augVal):
     np.random.seed(42)
     train_idx = []
     val_idx = []
     lake_idx = []
+    test_idx=[]
     if(dset_name=="mnist"): selected_classes=np.array([5,8])
     else: selected_classes = np.random.choice(np.arange(num_cls), size=split_cfg['num_cls_imbalance'], replace=False) #classes to imbalance
     for i in range(num_cls): #all_classes
@@ -312,6 +313,11 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal):
         else:    
             full_idx_class = list(torch.where(torch.Tensor(fullset.targets) == i)[0].cpu().numpy())
         if(i in selected_classes):
+            if(dset_name=="mnist"):
+                test_idx_class = list(torch.where(torch.Tensor(test_set.targets.float()) == i)[0].cpu().numpy())
+            else:
+                test_idx_class = list(torch.where(torch.Tensor(test_set.targets) == i)[0].cpu().numpy())
+            test_idx += test_idx_class
             class_train_idx = list(np.random.choice(np.array(full_idx_class), size=split_cfg['per_imbclass_train'], replace=False))
             remain_idx = list(set(full_idx_class) - set(class_train_idx))
             class_val_idx = list(np.random.choice(np.array(remain_idx), size=split_cfg['per_imbclass_val'], replace=False))
@@ -333,6 +339,7 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal):
         train_set = SubsetWithTargetsSingleChannel(fullset, train_idx, torch.Tensor(fullset.targets.float())[train_idx])
         val_set = SubsetWithTargetsSingleChannel(fullset, val_idx, torch.Tensor(fullset.targets.float())[val_idx])
         lake_set = SubsetWithTargetsSingleChannel(fullset, lake_idx, torch.Tensor(fullset.targets.float())[lake_idx])
+        test_set = SubsetWithTargetsSingleChannel(fullset, test_idx, torch.Tensor(fullset.targets.float())[test_idx])
     elif(dset_name=="svhn"):
         train_set = SubsetWithTargets(fullset, train_idx, torch.Tensor(fullset.labels)[train_idx])
         val_set = SubsetWithTargets(fullset, val_idx, torch.Tensor(fullset.labels)[val_idx])
@@ -342,7 +349,7 @@ def create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal):
         val_set = SubsetWithTargets(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx])
         lake_set = SubsetWithTargets(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])
     
-    return train_set, val_set, lake_set, selected_classes
+    return train_set, val_set, test_set,lake_set, selected_classes
 
 def getDuplicateData(dset_name, fullset, split_cfg):
     num_rep=split_cfg['num_rep']
@@ -540,12 +547,14 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
             mnist_transform = mnist_test_transform
         fullset = torchvision.datasets.MNIST(root=datadir, train=True, download=True, transform=mnist_transform)
         test_set = torchvision.datasets.MNIST(root=datadir, train=False, download=True, transform=mnist_test_transform)
-        # fullset.data = torch.repeat_interleave(fullset.data.unsqueeze(1), 3, 1).float()
+        #test_set=SubsetWithTargets(fullset, train_idx, torch.Tensor(fullset.targets)[train_idx])
+        #fullset.data = torch.repeat_interleave(fullset.data.unsqueeze(1), 3, 1).float()
+        #test_set.data = torch.repeat_interleave(test_set.data.unsqueeze(1), 3, 1).float()
         if(feature=="classimb"):
             if("sel_cls_idx" in split_cfg):
                 train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             else:
-                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+                train_set, val_set, test_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, test_set,split_cfg, num_cls, augVal)
             print("MNIST Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
