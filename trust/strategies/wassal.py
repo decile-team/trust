@@ -47,6 +47,7 @@ class WASSAL(Strategy):
     def __init__(self, labeled_dataset, unlabeled_dataset, query_dataset,net, nclasses, args={}): #
         #pretrained resnet18 as 
         self.net = resnet50(pretrained=True)
+        #self.net=net
         #merge labeled and query dataset into target and non-target classes and finetune the resnet50
         
         
@@ -109,7 +110,7 @@ class WASSAL(Strategy):
 
         query_dataset_len = len(self.query_dataset)
         minibatch_size = 4000
-        step_size=10
+       
         num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
         if(self.args['verbose']):
             print('There are',unlabeled_dataset_len,'Unlabeled dataset')
@@ -127,28 +128,29 @@ class WASSAL(Strategy):
         
         target_imgs=target_imgs.to(self.device)
         beta = beta.to(self.device)
-        optimizer = torch.optim.Adam([simplex_target], lr=0.001)
+         # Hyperparameters
+        lr = 0.1
+        step_size = 20
+        optimizer = torch.optim.Adam([simplex_target], lr=lr)
         
          # Define the learning rate scheduler
-        scheduler_target = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.5)
+        scheduler_target = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.1)
         simplex_target.requires_grad = True
         
 
-        # Hyperparameters
-        lr = 0.0005
-        step_size = 20
+       
 
         # Create lists to store the loss values
         
         overall_loss=[]
         
         # Loop over the datasets 10 times
-        for i in range(100):
+        for i in range(10):
             simplex_target.grad = None  # Reset gradients at the beginning of each epoch
             batch_idx = 0
             # Initialize loss_avg as a tensor with requires_grad=True
             loss_avg = torch.tensor(0.0, requires_grad=True)
-            print("Epoch:", i)
+            
             optimizer.zero_grad()
             #batchwise WD calculation
             for unlabeled_imgs in unlabeled_dataloader:
@@ -172,7 +174,7 @@ class WASSAL(Strategy):
                 loss_avg = loss_avg + loss / num_batches
                 
                 batch_idx += 1
-                print("Batchwise loss: {}".format(loss))
+                
             
             loss_avg.backward()
             optimizer.step()
@@ -181,8 +183,8 @@ class WASSAL(Strategy):
            
             with torch.no_grad():
                 simplex_target.data = self._proj_simplex(simplex_target.data)
+            print("Epoch:[", i,"],Avg loss: [{}]".format(loss_avg),end="\r")
             
-            print("Avg loss: {}".format(loss_avg))
 
         sorted_simplex,indices=torch.sort(simplex_target,descending=True)
         if(self.args['verbose']):
