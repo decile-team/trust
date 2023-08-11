@@ -38,7 +38,7 @@ from sklearn.metrics.pairwise import cosine_similarity, pairwise_distances
 from trust.strategies.smi import SMI
 from trust.strategies.random_sampling import RandomSampling
 from trust.strategies.wassal import WASSAL
-from trust.strategies.wassal_refrain import WASSAL_P
+from trust.strategies.wassal_private import WASSAL_P
 
 sys.path.append('/home/wassal/distil')
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
@@ -377,10 +377,10 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     if(strategy == "WASSAL"):
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel = WASSAL(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
-    if(strategy == "WASSAL_R"):
+    if(strategy == "WASSAL_P"):
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
-        strategy_sel = WASSAL_R(train_set, unlabeled_lake_set,for_query_set, for_private_set,model,num_cls,strategy_args)
+        strategy_sel = WASSAL_P(train_set, unlabeled_lake_set,for_query_set, for_private_set,model,num_cls,strategy_args)
 
         
     # Loss Functions
@@ -463,7 +463,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 strategy_sel.update_queries(for_query_set)
                 print('size of query set',len(for_query_set))
-            elif(strategy=="WASSAL_R"):
+            elif(strategy=="WASSAL_P"):
                 #concatina the train and val sets
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 for_private_set=getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
@@ -479,7 +479,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 temp_args['device'] = device
                 temp_args['target'] = sel_cls_idx
                 #analyze_simplex(temp_args,lake_set,simplex_query)
-            elif(strategy=="WASSAL_R"):
+            elif(strategy=="WASSAL_P"):
                 subset,simplex_query,simplex_private = strategy_sel.select(budget)
                 temp_args={}
                 temp_args['device'] = device
@@ -609,7 +609,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 # List of strategies
 strategies = [
     ("WASSAL", "WASSAL"),
-    ("WASSAL_R", "WASSAL_R"),
+    ("WASSAL_P", "WASSAL_P"),
     ("SIM", 'fl1mi'),
     ("SIM", 'fl2mi'),
     ("SIM", 'gcmi'),
