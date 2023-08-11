@@ -29,7 +29,7 @@ sys.path.append('/home/wassal/trust-wassal/')
 
 from trust.utils.models.resnet import ResNet18
 from trust.utils.models.resnet import ResNet50
-from trust.utils.custom_dataset import load_dataset_custom
+from trust.utils.custom_dataset_medmnist import load_biodataset_custom
 from torch.utils.data import Subset
 from torch.autograd import Variable
 import tqdm
@@ -44,7 +44,10 @@ sys.path.append('/home/wassal/distil')
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
 
-
+seed=42
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
 from trust.utils.utils import *
 from trust.utils.viz import tsne_smi
 
@@ -251,37 +254,32 @@ def analyze_simplex(args, unlabeled_set, simplex_query):
 
 # %%
 feature = "classimb"
-
-
-# datadir = 'data/'
-datadir = '/data' #contains the npz file of the data_name dataset listed below
-data_name = 'cifar10'
-model_name = 'ResNet18'
-learning_rate = 0.001
-computeClassErrorLog = True
-seed=42
-torch.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed)
-run="exp1"
 device_id = 0
+run="exp2"
+# datadir = 'data/'
+datadir = '/data/medmnist' #contains the npz file of the data_name dataset listed below
+data_name = 'pneumoniamnist'
+model_name = 'ResNet18'
+learning_rate = 0.0003
+computeClassErrorLog = True
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
 embedding_type = "features" #Type of the representation to use (gradients/features)
-budget = 400
+num_cls = 2
+#budget = 10
 visualize_tsne = False
-num_cls = 10
-
-
-split_cfg = {"num_cls_imbalance":2, #Number of rare classes
-             "per_imbclass_train":50, #Number of samples per rare class in the train dataset
-             "per_imbclass_val":200, #Number of samples per rare class in the validation dataset
-             "per_imbclass_lake":150, #Number of samples per rare class in the unlabeled dataset
-             "per_class_train":1000,  #Number of samples per unrare class in the train dataset
-             "per_class_val":200, #Number of samples per unrare class in the validation dataset
-             "per_class_lake":3000} #Number of samples per unrare class in the unlabeled dataset
-initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name + "_" + str(learning_rate) + "_" + str(split_cfg["per_imbclass_train"]) + "_" + str(split_cfg["per_class_train"]) + "_" + str(split_cfg["num_cls_imbalance"])
-
+split_cfg = {
+             "per_class_train":{0:100,1:5}, 
+             "per_class_val":{0:20,1:20}, 
+             "per_class_lake":{0:1050,1:53},
+             "per_class_test":{0:200,1:200},
+             "sel_cls_idx":[1], 
+             "per_imbclass_train":{0:100,1:5}, 
+             "per_imbclass_val":{0:20,1:20}, 
+             "per_imbclass_lake":{0:1050,1:53},
+             "per_imbclass_test":{0:200,1:200}}
+print("split_cfg:",split_cfg)
+initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
 
 # %% [markdown]
 # # Targeted Selection Algorithm
@@ -299,10 +297,10 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 device, computeErrorLog, strategy="SIM", sf=""):
 
     #load the dataset in the class imbalance setting
-    train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_dataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
+    train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_biodataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
     print("Indices of randomly selected classes for imbalance: ", sel_cls_idx)
     
-    #Set batch size for train, validation and test datasets
+   #Set batch size for train, validation and test datasets
     N = len(train_set)
     trn_batch_size = len(train_set)
     val_batch_size = len(val_set)
@@ -356,25 +354,33 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 "all_class_acc":None, 
                 "test_acc":[],
                 "sel_per_cls":[], 
-                "sel_cls_idx":sel_cls_idx.tolist()}
+                "sel_cls_idx":sel_cls_idx}
     
     # Model Creation
     model = create_model(model_name, num_cls, device, embedding_type)
-   
-    strategy_args = {'batch_size': 1000, 'device':device, 'embedding_type':'features', 'keep_embedding':True}
+  
+    strategy_args = {'batch_size': 1000, 'device':device, 'embedding_type':'featuresd[]', 'keep_embedding':True}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
-    
+    if(strategy == "AL"):
+        if(sf=="badge"):
+            strategy_sel = BADGE(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="us"):
+            strategy_sel = EntropySampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="glister" or sf=="glister-tss"):
+            strategy_sel = GLISTER(train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set, typeOf='rand', lam=0.1)
+        elif(sf=="gradmatch-tss"):
+            strategy_sel = GradMatchActive(train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set)
+        elif(sf=="coreset"):
+            strategy_sel = CoreSet(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="leastconf"):
+            strategy_sel = LeastConfidence(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="margin"):
+            strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     if(strategy == "SIM"):
         strategy_args['smi_function'] = sf
-        for_query_set = getQuerySet(train_set,sel_cls_idx)
+        for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel = SMI(train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args)
-    if(strategy == "SCMI"):
-        strategy_args['scmi_function'] = sf
-        strategy_sel = SCMI(train_set, unlabeled_lake_set, for_query_set, val_set, model, num_cls, strategy_args)
-    if(strategy == "SCG"):
-        strategy_args['scg_function'] = sf
-        strategy_sel = SCG(train_set, unlabeled_lake_set, val_set, model, num_cls, strategy_args)
     if(strategy == "random"):
         strategy_sel = RandomSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     if(strategy == "WASSAL"):
@@ -452,7 +458,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             if(strategy=="SIM" or strategy=="SF"):
                 if(sf.endswith("mi")):
                     if(feature=="classimb"):
-                        #make a dataloader for the misclassifications - only for experiments with queries
+                        #make a dataloader for the misclassifications - only for experiments with targets
                         for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set),sel_cls_idx)
                         strategy_sel.update_queries(for_query_set)
                         print('size of query set',len(for_query_set))
@@ -474,7 +480,6 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 strategy_sel.update_privates(for_private_set)
                 print('size of query set',len(for_query_set))
 
-            
             strategy_sel.update_model(model)
             if(strategy=="WASSAL"):
                 subset,simplex_query = strategy_sel.select(budget)
@@ -490,6 +495,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 #analyze_simplex(temp_args,lake_set,simplex_query)
             else:
                 subset = strategy_sel.select(budget)
+
             print("#### Selection Complete, Now re-training with augmented subset ####")
             if(visualize_tsne):
                 tsne_plt = tsne_smi(strategy_sel.unlabeled_data_embedding.cpu(),
@@ -602,20 +608,19 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     with open(os.path.join(all_logs_dir, exp_name+".json"), 'w') as fp:
         json.dump(res_dict, fp)
     #Print overall acc improvement and rare class acc improvement, show that TL selected relevant points in space, is possible show some images
-    print_final_results(res_dict, sel_cls_idx)
+#     print_final_results(res_dict, sel_cls_idx)
     print("Total gain in accuracy: ",res_dict['test_acc'][i]-res_dict['test_acc'][0])
     
 #     tsne_plt.show()
     
 
 # %%
-
-
 # List of strategies
 strategies = [
     
-    ("WASSAL_P", "WASSAL_P"),
+    
     ("WASSAL", "WASSAL"),
+    ("WASSAL_P", "WASSAL_P"),
     ("SIM", 'fl1mi'),
     ("SIM", 'fl2mi'),
     ("SIM", 'gcmi'),
@@ -651,5 +656,186 @@ for i,experiment in enumerate(experiments):
                                     computeClassErrorLog,
                                     strategy, 
                                     method)
+
+# %% [markdown]
+# # WASSAL
+# 
+
+# %%
+args = {}
+args['budget'] = 10
+args['num_rounds'] = 6
+args['classifier_learning_rate'] = 0.002
+args['verbose']=True
+run_targeted_selection(data_name,
+               datadir, 
+               feature, 
+               model_name, 
+               args['budget'], 
+               split_cfg,
+               args['classifier_learning_rate'],
+               run, 
+               device, 
+               computeClassErrorLog,
+               "WASSAL")
+
+# %% [markdown]
+# # Submodular Mutual Information (SMI)
+# 
+# We let $V$ denote the ground-set of $n$ data points $V = \{1, 2, 3,...,n \}$ and a set function $f:
+#  2^{V} \xrightarrow{} \Re$. Given a set of items $A, B \subseteq V$, the submodular mutual information (MI)[1,3] is defined as $I_f(A; B) = f(A) + f(B) - f(A \cup B)$. Intuitively, this measures the similarity between $B$ and $A$ and we refer to $B$ as the query set.
+# 
+# In [2], they extend MI to handle the case when the target can come from an auxiliary set $V^{\prime}$ different from the ground set $V$. For targeted data subset selection, $V$ is the source set of data instances and the target is a subset of data points (validation set or the specific set of examples of interest).
+# Let $\Omega  = V \cup V^{\prime}$. We define a set function $f: 2^{\Omega} \rightarrow \Re$. Although $f$ is defined on $\Omega$, the discrete optimization problem will only be defined on subsets $A \subseteq V$. To find an optimal subset given a query set $Q \subseteq V^{\prime}$, we can define $g_{Q}(A) = I_f(A; Q)$, $A \subseteq V$ and maximize the same.
+
+# %% [markdown]
+# # FL1MI
+# 
+# In the first variant of FL, we set the unlabeled dataset to be $V$. The SMI instantiation of FL1MI can be defined as:
+# \begin{align}
+# I_f(A;Q)=\sum_{i \in V}\min(\max_{j \in A}s_{ij}, \eta \max_{j \in Q}sq_{ij})
+# \end{align}
+# 
+# The first term in the min(.) of FL1MI models diversity, and the second term models query relevance. An increase in the value of $\eta$ causes the resulting summary to become more relevant to the query.
+
+# %%
+run_targeted_selection(data_name, 
+               datadir, 
+               feature, 
+               model_name, 
+               budget, 
+               split_cfg, 
+               learning_rate, 
+               run, 
+               device, 
+               computeClassErrorLog,
+               "SIM",'fl1mi')
+
+# %% [markdown]
+# # FL2MI
+# 
+# In the V2 variant, we set $D$ to be $V \cup Q$. The SMI instantiation of FL2MI can be defined as:
+# \begin{align} \label{eq:FL2MI}
+# I_f(A;Q)=\sum_{i \in Q} \max_{j \in A} sq_{ij} + \eta\sum_{i \in A} \max_{j \in Q} sq_{ij}
+# \end{align}
+# FL2MI is very intuitive for query relevance as well. It measures the representation of data points that are the most relevant to the query set and vice versa. It can also be thought of as a bidirectional representation score.
+
+# %%
+run_targeted_selection(data_name, 
+               datadir, 
+               feature, 
+               model_name, 
+               budget, 
+               split_cfg, 
+               learning_rate, 
+               run, 
+               device, 
+               computeClassErrorLog, 
+               "SIM",'fl2mi')
+
+# %% [markdown]
+# # GCMI
+# 
+# The SMI instantiation of graph-cut (GCMI) is defined as:
+# \begin{align}
+# I_f(A;Q)=2\sum_{i \in A} \sum_{j \in Q} sq_{ij}
+# \end{align}
+# Since maximizing GCMI maximizes the joint pairwise sum with the query set, it will lead to a subset similar to the query set $Q$.
+
+# %%
+run_targeted_selection(data_name, 
+               datadir, 
+               feature, 
+               model_name, 
+               budget, 
+               split_cfg, 
+               learning_rate, 
+               run, 
+               device, 
+               computeClassErrorLog,
+               "SIM",'gcmi')
+
+# %% [markdown]
+# # LOGDETMI
+# 
+# The SMI instantiation of LogDetMI can be defined as:
+# \begin{align}
+# I_f(A;Q)=\log\det(S_{A}) -\log\det(S_{A} - \eta^2 S_{A,Q}S_{Q}^{-1}S_{A,Q}^T)
+# \end{align}
+# $S_{A, B}$ denotes the cross-similarity matrix between the items in sets $A$ and $B$. The similarity matrix in constructed in such a way that the cross-similarity between $A$ and $Q$ is multiplied by $\eta$ to control the trade-off between query-relevance and diversity.
+
+# %%
+run_targeted_selection(data_name, 
+               datadir, 
+               feature, 
+               model_name, 
+               budget, 
+               split_cfg, 
+               learning_rate, 
+               run, 
+               device, 
+               computeClassErrorLog,
+               "SIM",'logdetmi')
+
+# %% [markdown]
+# # Random
+
+# %%
+run_targeted_selection(data_name, 
+               datadir, 
+               feature, 
+               model_name, 
+               budget, 
+               split_cfg, 
+               learning_rate, 
+               run, 
+               device, 
+               computeClassErrorLog,
+               "random",'random')
+
+# %% [markdown]
+# # US
+
+# %%
+run_targeted_selection(data_name, 
+               datadir, 
+               feature, 
+               model_name, 
+               budget, 
+               split_cfg, 
+               learning_rate, 
+               run, 
+               device, 
+               computeClassErrorLog,
+               "AL",'us')
+
+# %% [markdown]
+# # BADGE
+
+# %%
+run_targeted_selection(data_name, 
+               datadir, 
+               feature, 
+               model_name, 
+               budget, 
+               split_cfg, 
+               learning_rate, 
+               run, 
+               device, 
+               computeClassErrorLog,
+               "AL",'badge')
+
+# %% [markdown]
+# # References
+# [1] Rishabh Iyer, Ninad Khargoankar, Jeff Bilmes, and Himanshu Asnani. Submodular combinatorialinformation measures with applications in machine learning.arXiv preprint arXiv:2006.15412,2020
+# 
+# 
+# [2] Kaushal V, Kothawade S, Ramakrishnan G, Bilmes J, Iyer R. PRISM: A Unified Framework of Parameterized Submodular Information Measures for Targeted Data Subset Selection and Summarization. arXiv preprint arXiv:2103.00128. 2021 Feb 27.
+# 
+# 
+# [3] Anupam Gupta and Roie Levin. The online submodular cover problem. InACM-SIAM Symposiumon Discrete Algorithms, 2020
+
+# %%
+
 
 
