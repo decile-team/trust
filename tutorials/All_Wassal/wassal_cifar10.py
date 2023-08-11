@@ -44,10 +44,7 @@ sys.path.append('/home/wassal/distil')
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
 
-seed=42
-torch.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed)
+
 from trust.utils.utils import *
 from trust.utils.viz import tsne_smi
 
@@ -254,14 +251,20 @@ def analyze_simplex(args, unlabeled_set, simplex_query):
 
 # %%
 feature = "classimb"
-device_id = 0
-run="exp1"
+
+
 # datadir = 'data/'
 datadir = '/data' #contains the npz file of the data_name dataset listed below
 data_name = 'cifar10'
 model_name = 'ResNet18'
 learning_rate = 0.001
 computeClassErrorLog = True
+seed=42
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
+run="exp1"
+device_id = 0
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
 embedding_type = "features" #Type of the representation to use (gradients/features)
@@ -606,6 +609,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
 
 # %%
+
+
 # List of strategies
 strategies = [
     ("WASSAL", "WASSAL"),
@@ -617,24 +622,33 @@ strategies = [
     ("random", 'random'),
     
 ]
+experiments=['exp1','exp2','exp3','exp4','exp5']
+seeds=[42,43,44,45,46]
 
+for i,experiment in enumerate(experiments):
+    seed=seeds[i]
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    run=experiment
+    device_id = 0
+    device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
-# Loop for each budget from 50 to 400 in intervals of 50
-for b in range(50, 401, 50):
-    # Loop through each strategy
-    for strategy, method in strategies:
-        print("Budget ",b," Strategy ",strategy," Method ",method)
-        run_targeted_selection(data_name, 
-                                datadir, 
-                                feature, 
-                                model_name, 
-                                b,             # updated budget
-                                split_cfg, 
-                                learning_rate, 
-                                run, 
-                                device, 
-                                computeClassErrorLog,
-                                strategy, 
-                                method)
+    # Loop for each budget from 50 to 400 in intervals of 50
+    for b in range(50, 401, 50):
+        # Loop through each strategy
+        for strategy, method in strategies:
+            print("Budget ",b," Strategy ",strategy," Method ",method)
+            run_targeted_selection(data_name, 
+                                    datadir, 
+                                    feature, 
+                                    model_name, 
+                                    b,             # updated budget
+                                    split_cfg, 
+                                    learning_rate, 
+                                    run, 
+                                    device, 
+                                    computeClassErrorLog,
+                                    strategy, 
+                                    method)
 
 

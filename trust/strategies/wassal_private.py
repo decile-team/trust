@@ -197,7 +197,7 @@ class WASSAL_P(Strategy):
                 query_features = query_features.view(query_features.shape[0], -1)    
                 private_features = private_features.view(private_features.shape[0], -1)
                 simplex_batch_query = simplex_query[batch_idx * unlabeled_dataloader.batch_size : (batch_idx + 1) * unlabeled_dataloader.batch_size]
-                simplex_batch_private = simplex_private[batch_idx * private_dataloader.batch_size : (batch_idx + 1) * private_dataloader.batch_size]
+                simplex_batch_private = simplex_private[batch_idx * unlabeled_dataloader.batch_size : (batch_idx + 1) * unlabeled_dataloader.batch_size]
 
                 #should we average or project?
                 simplex_batch_query = simplex_batch_query.clone() / simplex_batch_query.sum()
