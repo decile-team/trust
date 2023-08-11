@@ -16,7 +16,7 @@ class customSampler(torch.utils.data.Sampler):
     def __iter__(self):
         return iter(self.ind)
 
-class WASSAL(Strategy):
+class WASSAL_P(Strategy):
     
     """
     
@@ -44,15 +44,17 @@ class WASSAL(Strategy):
             - **verbose**: Gives a more verbose output when calling select() when True. (bool)
     """
     
-    def __init__(self, labeled_dataset, unlabeled_dataset, query_dataset,net, nclasses, args={}): #
+    def __init__(self, labeled_dataset, unlabeled_dataset, query_dataset,private_dataset,net, nclasses, args={}): #
         #pretrained resnet18 as 
         self.net = resnet50(pretrained=True)
         #self.net=net
         #merge labeled and query dataset into query and non-query classes and finetune the resnet50
         
         
-        super(WASSAL, self).__init__(labeled_dataset, unlabeled_dataset, net, nclasses, args)        
+        super(WASSAL_P, self).__init__(labeled_dataset, unlabeled_dataset, net, nclasses, args)        
         self.query_dataset = query_dataset
+        self.private_dataset = private_dataset
+        self.args['h']=0.3
         self.args['verbose']=True
 
     def _proj_simplex(self,v):
@@ -80,6 +82,9 @@ class WASSAL(Strategy):
 
     def get_query_simplex(self):
         return self.simplex_query
+    
+    def get_private_simplex(self):
+        return self.simplex_private
     
     def select(self, budget):
         # venkat sir's code
@@ -111,6 +116,7 @@ class WASSAL(Strategy):
         sampler = customSampler(shuffled_indices)
 
         query_dataset_len = len(self.query_dataset)
+        private_dataset_len = len(self.private_dataset)
         minibatch_size = 4000
        
         num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
@@ -119,30 +125,50 @@ class WASSAL(Strategy):
             
         #uniform distribution of weights
         simplex_query= Variable(torch.ones(unlabeled_dataset_len, requires_grad=True, device=self.device)/unlabeled_dataset_len)
+        simplex_private= Variable(torch.ones(private_dataset_len, requires_grad=True, device=self.device)/private_dataset_len)
+
         beta = torch.ones(query_dataset_len, requires_grad=False)/query_dataset_len
+        gamma= torch.ones(private_dataset_len, requires_grad=False)/private_dataset_len
+
         unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
         query_dataloader = DataLoader(dataset=self.query_dataset, batch_size=len(self.query_dataset), shuffle=False)
+        private_dataloader = DataLoader(dataset=self.private_dataset, batch_size=len(self.private_dataset), shuffle=False)
 
         query_iter=iter(query_dataloader)
+        private_iter=iter(private_dataloader)
+
 
         query_imgs, _= next(query_iter)
+        private_imgs, _= next(private_iter)
         
         
         query_imgs=query_imgs.to(self.device)
+        private_imgs=private_imgs.to(self.device)
+
         beta = beta.to(self.device)
+        gamma = gamma.to(self.device)
+
          # Hyperparameters
         lr = 0.001
-        step_size = 25
+        step_size = 30
         m=0.9
         wd=5e-4
         optimizer = torch.optim.Adam([simplex_query], lr=lr)
+        optimizer_private = torch.optim.Adam([simplex_private], lr=lr)
         #optimizer = torch.optim.SGD([simplex_query], lr=lr,
          #                 momentum=m, weight_decay=wd)
          # Define the learning rate scheduler
         scheduler_query = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.1)
-        simplex_query.requires_grad = True
-        
+        scheduler_private = torch.optim.lr_scheduler.StepLR(optimizer_private, step_size=step_size, gamma=0.1)
 
+        simplex_query.requires_grad = True
+        simplex_private.requires_grad = True
+        
+        # Create lists to store the loss values
+        loss_1 = []
+        loss_2 = []
+        loss_3 = []
+        overall_loss=[]
        
 
         # Create lists to store the loss values
@@ -152,6 +178,7 @@ class WASSAL(Strategy):
         # Loop over the datasets 10 times
         for i in range(100):
             simplex_query.grad = None  # Reset gradients at the beginning of each epoch
+            simplex_private.grad = None
             batch_idx = 0
             # Initialize loss_avg as a tensor with requires_grad=True
             loss_avg = torch.tensor(0.0, requires_grad=True)
@@ -164,17 +191,26 @@ class WASSAL(Strategy):
                 if(embedding_type == "features"):
                     unlabeled_features = self.get_feature_embedding(unlabeled_imgs, True, layer_name)
                     query_features = self.get_feature_embedding(query_imgs, True, layer_name)
+                    private_features = self.get_feature_embedding(private_imgs, True, layer_name)
                     
                 unlabeled_features = unlabeled_features.view(unlabeled_features.shape[0], -1)
                 query_features = query_features.view(query_features.shape[0], -1)    
+                private_features = private_features.view(private_features.shape[0], -1)
                 simplex_batch_query = simplex_query[batch_idx * unlabeled_dataloader.batch_size : (batch_idx + 1) * unlabeled_dataloader.batch_size]
+                simplex_batch_private = simplex_private[batch_idx * private_dataloader.batch_size : (batch_idx + 1) * private_dataloader.batch_size]
+
                 #should we average or project?
                 simplex_batch_query = simplex_batch_query.clone() / simplex_batch_query.sum()
+                simplex_batch_private = simplex_batch_private.clone() / simplex_batch_private.sum()
 
-                weights_batch = simplex_query[batch_idx*minibatch_size:(batch_idx+1)*minibatch_size]
+                
                 simplex_batch_query=simplex_batch_query.to(self.device)
+                simplex_batch_private=simplex_batch_private.to(self.device)
                 #unlabeled_imgs=unlabeled_imgs.to(self.device)
-                loss = loss_func(simplex_batch_query, unlabeled_features, beta, query_features)
+                l1 = loss_func(simplex_batch_query, unlabeled_features, beta, query_features)
+                l2 = loss_func(simplex_batch_private, unlabeled_features, gamma, private_features)
+                l3 = loss_func(simplex_batch_query, unlabeled_features, simplex_batch_private, unlabeled_features)
+                loss = l1 + l2 - self.args['h']*l3
                 #loss = loss_func(simplex_batch_query, unlabeled_imgs.view(len(unlabeled_imgs), -1), beta, query_imgs.view(len(query_imgs), -1))
                 overall_loss.append(loss.item())
                 
@@ -185,17 +221,22 @@ class WASSAL(Strategy):
             
             loss_avg.backward()
             optimizer.step()
+            optimizer_private.step()
             scheduler_query.step()
+            scheduler_private.step()
             
            
             with torch.no_grad():
                 simplex_query.data = self._proj_simplex(simplex_query.data)
+                simplex_private.data = self._proj_simplex(simplex_private.data)
             print("Epoch:[", i,"],Avg loss: [{}]".format(loss_avg),end="\r")
 
         #store as an object variable    
         self.simplex_query = simplex_query
+        self.simplex_private = simplex_private
 
         sorted_simplex,indices=torch.sort(simplex_query,descending=True)
+
         if(self.args['verbose']):
             print('length of unlabelled dataset:',unlabeled_dataset_len)
             print('Totals Probability of the budget:',str(torch.sum(sorted_simplex[:budget])))
@@ -203,4 +244,4 @@ class WASSAL(Strategy):
         self.simplex_query = simplex_query
         inter_indices = torch.Tensor.tolist(indices[:budget])
         final_indices = [shuffled_indices[ind] for ind in inter_indices]
-        return final_indices,simplex_query
+        return final_indices,simplex_query,simplex_private

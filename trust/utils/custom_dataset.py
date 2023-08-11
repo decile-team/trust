@@ -521,7 +521,7 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
             if("sel_cls_idx" in split_cfg):
                 train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)
             else:
-                train_set, val_set, lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, split_cfg, num_cls, augVal)
+                train_set, val_set, test_set,lake_set, imb_cls_idx = create_class_imb(dset_name, fullset, test_set,split_cfg, num_cls, augVal)
             print("CIFAR-10 Custom dataset stats: Train size: ", len(train_set), "Val size: ", len(val_set), "Lake size: ", len(lake_set))
             return train_set, val_set, test_set, lake_set, imb_cls_idx, num_cls
         if(feature=="ood"):
