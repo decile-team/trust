@@ -125,7 +125,7 @@ class WASSAL_P(Strategy):
             
         #uniform distribution of weights
         simplex_query= Variable(torch.ones(unlabeled_dataset_len, requires_grad=True, device=self.device)/unlabeled_dataset_len)
-        simplex_private= Variable(torch.ones(private_dataset_len, requires_grad=True, device=self.device)/private_dataset_len)
+        simplex_private= Variable(torch.ones(unlabeled_dataset_len, requires_grad=True, device=self.device)/unlabeled_dataset_len)
 
         beta = torch.ones(query_dataset_len, requires_grad=False)/query_dataset_len
         gamma= torch.ones(private_dataset_len, requires_grad=False)/private_dataset_len
