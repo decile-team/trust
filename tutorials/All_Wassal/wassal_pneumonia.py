@@ -36,6 +36,7 @@ import tqdm
 from math import floor
 from sklearn.metrics.pairwise import cosine_similarity, pairwise_distances
 from trust.strategies.smi import SMI
+from trust.strategies.scmi import SCMI
 from trust.strategies.random_sampling import RandomSampling
 from trust.strategies.wassal import WASSAL
 from trust.strategies.wassal_private import WASSAL_P
@@ -43,6 +44,11 @@ from trust.strategies.wassal_private import WASSAL_P
 sys.path.append('/home/wassal/distil')
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
+from distil.active_learning_strategies.glister import GLISTER
+from distil.active_learning_strategies.gradmatch_active import  GradMatchActive
+from distil.active_learning_strategies.core_set import CoreSet
+from distil.active_learning_strategies.least_confidence_sampling import LeastConfidenceSampling
+from distil.active_learning_strategies.margin_sampling import MarginSampling
 
 seed=42
 torch.manual_seed(seed)
@@ -259,12 +265,12 @@ run="exp2"
 # datadir = 'data/'
 datadir = '/data/medmnist' #contains the npz file of the data_name dataset listed below
 data_name = 'pneumoniamnist'
-model_name = 'ResNet18'
+
 learning_rate = 0.0003
 computeClassErrorLog = True
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
-embedding_type = "features" #Type of the representation to use (gradients/features)
+
 num_cls = 2
 #budget = 10
 visualize_tsne = False
@@ -279,7 +285,6 @@ split_cfg = {
              "per_imbclass_lake":{0:1050,1:53},
              "per_imbclass_test":{0:200,1:200}}
 print("split_cfg:",split_cfg)
-initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
 
 # %% [markdown]
 # # Targeted Selection Algorithm
@@ -323,7 +328,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     bud = budget
    
     # Variables to store accuracies
-    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=5 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -337,7 +342,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     csvlog = []
     val_csvlog = []
     # Results logging file
-    all_logs_dir = '/home/wassal/trust-wassal/tutorials/results/' + dataset_name  + '/' + feature + '/'+  sf + '/' + str(bud) + '/' + str(run)
+    all_logs_dir = '/home/wassal/trust-wassal/tutorials/results/' + dataset_name  + '/' + feature+"/rounds"+str(num_rounds) + '/'+  sf + '/' + str(bud) + '/' + str(run)
     print("Saving results to: ", all_logs_dir)
     subprocess.run(["mkdir", "-p", all_logs_dir]) #Uncomment for saving results
     exp_name = dataset_name + "_" + feature +  "_" + strategy + "_" + str(len(sel_cls_idx))  +"_" + sf +  '_budget:' + str(bud) + '_rounds:' + str(num_rounds) + '_runs' + str(run)
@@ -356,10 +361,9 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 "sel_per_cls":[], 
                 "sel_cls_idx":sel_cls_idx}
     
-    # Model Creation
-    model = create_model(model_name, num_cls, device, embedding_type)
+   
   
-    strategy_args = {'batch_size': 1000, 'device':device, 'embedding_type':'features', 'keep_embedding':True}
+    strategy_args = {'batch_size': 1000, 'device':device, 'embedding_type':'features', 'keep_embedding':True,'lr':learning_rate}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
     if(strategy == "AL"):
@@ -374,19 +378,26 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
         elif(sf=="coreset"):
             strategy_sel = CoreSet(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
         elif(sf=="leastconf"):
-            strategy_sel = LeastConfidence(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+            strategy_sel = LeastConfidenceSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
         elif(sf=="margin"):
             strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
-    if(strategy == "SIM"):
+    elif(strategy == "SIM"):
         strategy_args['smi_function'] = sf
+        strategy_args['optimizer'] = 'LazyGreedy'
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel = SMI(train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args)
-    if(strategy == "random"):
+    elif(strategy == "SCMI"):
+        strategy_args['scmi_function'] = sf
+        strategy_args['optimizer'] = 'LazyGreedy'
+        for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        strategy_sel=SCMI(train_set, unlabeled_lake_set, for_query_set, for_private_set, model, num_cls, strategy_args)
+    elif(strategy == "random"):
         strategy_sel = RandomSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     if(strategy == "WASSAL"):
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel = WASSAL(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
-    if(strategy == "WASSAL_P"):
+    elif(strategy == "WASSAL_P"):
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel = WASSAL_P(train_set, unlabeled_lake_set,for_query_set, for_private_set,model,num_cls,strategy_args)
@@ -464,15 +475,23 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         print('size of query set',len(for_query_set))
             elif(strategy=="AL"):
                 if(sf=="glister-tss" or sf=="gradmatch-tss"):
-                    miscls_set = getQuerySet(val_set, val_class_err_idxs, sel_cls_idx, miscls)
+                    miscls_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                     strategy_sel.update_queries(miscls_set)
                     print("reinit AL with targeted miscls samples")
+                
             elif(strategy=="WASSAL"):
                 #concatina the train and val sets
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 strategy_sel.update_queries(for_query_set)
                 print('size of query set',len(for_query_set))
             elif(strategy=="WASSAL_P"):
+                #concatina the train and val sets
+                for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                for_private_set=getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                strategy_sel.update_queries(for_query_set)
+                strategy_sel.update_privates(for_private_set)
+                print('size of query set',len(for_query_set))
+            elif(strategy=="SCMI"):
                 #concatina the train and val sets
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 for_private_set=getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
@@ -614,23 +633,81 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 #     tsne_plt.show()
     
 
+
+
+
 # %%
-# List of strategies
-strategies = [
-    
-    
-    ("WASSAL", "WASSAL"),
-    ("WASSAL_P", "WASSAL_P"),
-    ("SIM", 'fl1mi'),
-    ("SIM", 'fl2mi'),
-    ("SIM", 'gcmi'),
-    ("SIM", 'logdetmi'),
-    ("random", 'random'),
-    
-]
 experiments=['exp1','exp2','exp3','exp4','exp5']
 seeds=[42,43,44,45,46]
 budgets=[5,10,15,20,25]
+
+# embedding_type = "features" #Type of the representation to use (gradients/features)
+# model_name = 'ResNet18' #Model to use for training
+# initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+#  # Model Creation
+# model = create_model(model_name, num_cls, device, embedding_type)
+# #List of strategies
+# strategies = [
+    
+    
+#     ("WASSAL", "WASSAL"),
+#     ("WASSAL_P", "WASSAL_P"),
+#     ("SIM", 'fl1mi'),
+#     ("SIM", 'fl2mi'),
+#     ("SIM", 'gcmi'),
+#     ("SIM", 'logdetmi'),
+#     ('SCMI', 'flcmi'),
+#     ('SCMI', 'logdetcmi'),
+#     ("random", 'random'),
+    
+# ]
+
+# for i,experiment in enumerate(experiments):
+#     seed=seeds[i]
+#     torch.manual_seed(seed)
+#     np.random.seed(seed)
+#     run=experiment
+#     device_id = 0
+#     device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
+
+#     # Loop for each budget from 50 to 400 in intervals of 50
+#     for b in budgets:
+#         # Loop through each strategy
+#         for strategy, method in strategies:
+#             print("Budget ",b," Strategy ",strategy," Method ",method)
+#             run_targeted_selection(data_name, 
+#                                     datadir, 
+#                                     feature, 
+#                                     model_name, 
+#                                     b,             # updated budget
+#                                     split_cfg, 
+#                                     learning_rate, 
+#                                     run, 
+#                                     device, 
+#                                     computeClassErrorLog,
+#                                     strategy, 
+#                                     method)
+
+
+embedding_type = "gradients" #Type of the representation to use (gradients/features)
+model_name = 'ResNet18' #Model to use for training
+initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+ # Model Creation
+model = create_model(model_name, num_cls, device, embedding_type)
+strategies = [
+    
+    
+    ("AL", "badge"),
+    ("AL", 'us'),
+    ("AL", "glister"),
+    ("AL", 'gradmatch-tss'),
+    ("AL", 'coreset'),
+    ("AL", 'leastconf'),
+    ("AL", 'margin'),
+    
+    
+]
+
 for i,experiment in enumerate(experiments):
     seed=seeds[i]
     torch.manual_seed(seed)

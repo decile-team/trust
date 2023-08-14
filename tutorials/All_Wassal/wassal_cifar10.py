@@ -257,7 +257,7 @@ feature = "classimb"
 datadir = '/data' #contains the npz file of the data_name dataset listed below
 data_name = 'cifar10'
 model_name = 'ResNet18'
-learning_rate = 0.001
+learning_rate = 0.01
 computeClassErrorLog = True
 seed=42
 torch.manual_seed(seed)
@@ -273,12 +273,19 @@ visualize_tsne = False
 num_cls = 10
 
 
+# split_cfg = {"num_cls_imbalance":2, #Number of rare classes
+#              "per_imbclass_train":50, #Number of samples per rare class in the train dataset
+#              "per_imbclass_val":200, #Number of samples per rare class in the validation dataset
+#              "per_imbclass_lake":150, #Number of samples per rare class in the unlabeled dataset
+#              "per_class_train":1000,  #Number of samples per unrare class in the train dataset
+#              "per_class_val":200, #Number of samples per unrare class in the validation dataset
+#              "per_class_lake":3000} #Number of samples per unrare class in the unlabeled dataset
 split_cfg = {"num_cls_imbalance":2, #Number of rare classes
-             "per_imbclass_train":50, #Number of samples per rare class in the train dataset
-             "per_imbclass_val":200, #Number of samples per rare class in the validation dataset
+             "per_imbclass_train":200, #Number of samples per rare class in the train dataset
+             "per_imbclass_val":5, #Number of samples per rare class in the validation dataset
              "per_imbclass_lake":150, #Number of samples per rare class in the unlabeled dataset
              "per_class_train":1000,  #Number of samples per unrare class in the train dataset
-             "per_class_val":200, #Number of samples per unrare class in the validation dataset
+             "per_class_val":5, #Number of samples per unrare class in the validation dataset
              "per_class_lake":3000} #Number of samples per unrare class in the unlabeled dataset
 initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name + "_" + str(learning_rate) + "_" + str(split_cfg["per_imbclass_train"]) + "_" + str(split_cfg["per_class_train"]) + "_" + str(split_cfg["num_cls_imbalance"])
 
@@ -382,7 +389,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
         strategy_sel = WASSAL(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
     if(strategy == "WASSAL_P"):
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
-        for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        for_private_set = getPrivateSet(val_set,sel_cls_idx)
         strategy_sel = WASSAL_P(train_set, unlabeled_lake_set,for_query_set, for_private_set,model,num_cls,strategy_args)
 
         
@@ -469,7 +476,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             elif(strategy=="WASSAL_P"):
                 #concatina the train and val sets
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
-                for_private_set=getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                for_private_set=getPrivateSet(val_set,sel_cls_idx)
                 strategy_sel.update_queries(for_query_set)
                 strategy_sel.update_privates(for_private_set)
                 print('size of query set',len(for_query_set))
@@ -509,8 +516,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 #           Reinit train and lake loaders with new splits and reinit the model
             trainloader = torch.utils.data.DataLoader(train_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True)
             lakeloader = torch.utils.data.DataLoader(lake_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True)
-            #model = create_model(model_name, num_cls, device, strategy_args['embedding_type'])
-            #optimizer = optimizer_without_scheduler(model, learning_rate)
+            model = create_model(model_name, num_cls, device, strategy_args['embedding_type'])
+            optimizer = optimizer_without_scheduler(model, learning_rate)
                 
         #Start training
         start_time = time.time()
