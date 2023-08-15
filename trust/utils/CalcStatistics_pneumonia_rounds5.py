@@ -5,18 +5,17 @@ import matplotlib.pyplot as plt
 #for cifar
 #base_dir = "/home/wassal/trust-wassal/tutorials/results/cifar10/classimb"
 #budgets=['50', '100', '150', '200', '250', '300', '350', '400', '450', '500']
-filename = "output_statistics_cifr10_classimb_withAL_5rounds_"
+filename = "output_statistics_cifr10_classimb_withAL"
 
 #for pneumonia
-base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds5"
+base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb"
 budgets=['5', '10', '15', '20', '25']
+filename = "output_statistics_pneu_classimb_withAL"
 
 strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
-strategies = ["WASSAL", "WASSAL_P","random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin"]
-#strategies = ["WASSAL_P","random","logdetcmi","flcmi"]
-#strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi", "random"]
 
-experiments=['exp1','exp2','exp3','exp4','exp5']
+
+experiments=['exp1']
 rounds=5
 # Prepare the CSV file for saving stats
 output_path = os.path.join(base_dir, filename+"rounds_"+str(rounds)+".csv")
@@ -63,11 +62,8 @@ with open(output_path, "w", newline='') as csvfile:
                     else:
                         continue
                     df = pd.read_csv(csv_path,header=None)
-                    #cumlative gains from each row
-                    #for i in range(0,5):
-                    #gains=
                     y1 = df.iloc[0, 1]
-                    y2 = df.iloc[4, 1]
+                    y2 = df.iloc[1, 1]
                     gain = y2 - y1
                     gains.append(gain)
                 if not gains:
@@ -92,22 +88,13 @@ with open(output_path, "w", newline='') as csvfile:
                 data[strategy]['budgets'].append(budget)
     print(f"Statistics saved to {output_path}")
 
-# Define 10 distinct colors
-colors = [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-    '#1fa2b4', '#b27f0e', '#a2a02c', '#662728', '#9467ad',
-    '#2c564b', '#e377a2', '#a27f7f', '#2c2d22', '#b7beaf'
-]
     # Plot data
 # Plot data
 plt.figure(figsize=(10, 6))
-color_index = 0
 
 # Loop through the data dictionary to extract the values
 for strategy, values in data.items():
-    plt.plot(values['budgets'], values['means'], label=strategy,color=colors[color_index])
-    color_index += 1
+    plt.plot(values['budgets'], values['means'], label=strategy)
     #plt.errorbar(values['budgets'], values['means'],values['sds'], label=strategy)
 
 plt.xlabel('Budget')

@@ -5,3 +5,5 @@ tutorials/All_Wassal/data/*
 trust/strategies/__pycache__/*
 trust/utils/__pycache__/*
 trust/utils/models/__pycache__/*
+tutorials/All_Wassal/wassal_pneumonia.py
+output_statistics.csv

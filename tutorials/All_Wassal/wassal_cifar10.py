@@ -36,6 +36,7 @@ import tqdm
 from math import floor
 from sklearn.metrics.pairwise import cosine_similarity, pairwise_distances
 from trust.strategies.smi import SMI
+from trust.strategies.scmi import SCMI
 from trust.strategies.random_sampling import RandomSampling
 from trust.strategies.wassal import WASSAL
 from trust.strategies.wassal_private import WASSAL_P
@@ -43,6 +44,11 @@ from trust.strategies.wassal_private import WASSAL_P
 sys.path.append('/home/wassal/distil')
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
+from distil.active_learning_strategies.glister import GLISTER
+from distil.active_learning_strategies.gradmatch_active import  GradMatchActive
+from distil.active_learning_strategies.core_set import CoreSet
+from distil.active_learning_strategies.least_confidence_sampling import LeastConfidenceSampling
+from distil.active_learning_strategies.margin_sampling import MarginSampling
 
 
 from trust.utils.utils import *
@@ -257,18 +263,12 @@ feature = "classimb"
 datadir = '/data' #contains the npz file of the data_name dataset listed below
 data_name = 'cifar10'
 model_name = 'ResNet18'
-learning_rate = 0.01
+learning_rate = 0.0003
 computeClassErrorLog = True
-seed=42
-torch.manual_seed(seed)
-np.random.seed(seed)
-random.seed(seed)
 run="exp1"
 device_id = 0
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
-embedding_type = "features" #Type of the representation to use (gradients/features)
-budget = 400
 visualize_tsne = False
 num_cls = 10
 
@@ -287,7 +287,6 @@ split_cfg = {"num_cls_imbalance":2, #Number of rare classes
              "per_class_train":1000,  #Number of samples per unrare class in the train dataset
              "per_class_val":5, #Number of samples per unrare class in the validation dataset
              "per_class_lake":3000} #Number of samples per unrare class in the unlabeled dataset
-initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name + "_" + str(learning_rate) + "_" + str(split_cfg["per_imbclass_train"]) + "_" + str(split_cfg["per_class_train"]) + "_" + str(split_cfg["num_cls_imbalance"])
 
 
 # %% [markdown]
@@ -332,7 +331,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     bud = budget
    
     # Variables to store accuracies
-    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=5 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -365,20 +364,37 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 "sel_per_cls":[], 
                 "sel_cls_idx":sel_cls_idx.tolist()}
     
-    # Model Creation
-    model = create_model(model_name, num_cls, device, embedding_type)
-   
-    strategy_args = {'batch_size': 1000, 'device':device, 'embedding_type':'features', 'keep_embedding':True}
+    
+    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':'features', 'keep_embedding':True,'lr':learning_rate}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
+    if(strategy == "AL"):
+        if(sf=="badge"):
+            strategy_sel = BADGE(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="us"):
+            strategy_sel = EntropySampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="glister" or sf=="glister-tss"):
+            strategy_sel = GLISTER(train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set, typeOf='rand', lam=0.1)
+        elif(sf=="gradmatch-tss"):
+            strategy_sel = GradMatchActive(train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set)
+        elif(sf=="coreset"):
+            strategy_sel = CoreSet(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="leastconf"):
+            strategy_sel = LeastConfidenceSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf=="margin"):
+            strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     
-    if(strategy == "SIM"):
+    elif(strategy == "SIM"):
         strategy_args['smi_function'] = sf
-        for_query_set = getQuerySet(train_set,sel_cls_idx)
+        strategy_args['optimizer'] = 'LazyGreedy'
+        for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel = SMI(train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args)
     if(strategy == "SCMI"):
         strategy_args['scmi_function'] = sf
-        strategy_sel = SCMI(train_set, unlabeled_lake_set, for_query_set, val_set, model, num_cls, strategy_args)
+        strategy_args['optimizer'] = 'LazyGreedy'
+        for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        strategy_sel=SCMI(train_set, unlabeled_lake_set, for_query_set, for_private_set, model, num_cls, strategy_args)
     if(strategy == "SCG"):
         strategy_args['scg_function'] = sf
         strategy_sel = SCG(train_set, unlabeled_lake_set, val_set, model, num_cls, strategy_args)
@@ -465,7 +481,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         print('size of query set',len(for_query_set))
             elif(strategy=="AL"):
                 if(sf=="glister-tss" or sf=="gradmatch-tss"):
-                    miscls_set = getQuerySet(val_set, val_class_err_idxs, sel_cls_idx, miscls)
+                    miscls_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                     strategy_sel.update_queries(miscls_set)
                     print("reinit AL with targeted miscls samples")
             elif(strategy=="WASSAL"):
@@ -477,6 +493,13 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 #concatina the train and val sets
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 for_private_set=getPrivateSet(val_set,sel_cls_idx)
+                strategy_sel.update_queries(for_query_set)
+                strategy_sel.update_privates(for_private_set)
+                print('size of query set',len(for_query_set))
+            elif(strategy=="SCMI"):
+                #concatina the train and val sets
+                for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                for_private_set=getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 strategy_sel.update_queries(for_query_set)
                 strategy_sel.update_privates(for_private_set)
                 print('size of query set',len(for_query_set))
@@ -616,22 +639,30 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
 
 # %%
+experiments=['exp1','exp2','exp3','exp4','exp5']
+seeds=[42,43,44,45,46]
+budgets=[5,10,15,20,25]
 
-
-# List of strategies
+embedding_type = "features" #Type of the representation to use (gradients/features)
+model_name = 'ResNet18' #Model to use for training
+initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+ # Model Creation
+model = create_model(model_name, num_cls, device, embedding_type)
+#List of strategies
 strategies = [
     
-    ("WASSAL_P", "WASSAL_P"),
+    
     ("WASSAL", "WASSAL"),
+    ("WASSAL_P", "WASSAL_P"),
     ("SIM", 'fl1mi'),
     ("SIM", 'fl2mi'),
     ("SIM", 'gcmi'),
     ("SIM", 'logdetmi'),
+    ('SCMI', 'flcmi'),
+    ('SCMI', 'logdetcmi'),
     ("random", 'random'),
     
 ]
-experiments=['exp1','exp2','exp3','exp4','exp5']
-seeds=[42,43,44,45,46]
 
 for i,experiment in enumerate(experiments):
     seed=seeds[i]
@@ -642,7 +673,7 @@ for i,experiment in enumerate(experiments):
     device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
     # Loop for each budget from 50 to 400 in intervals of 50
-    for b in range(50, 401, 50):
+    for b in budgets:
         # Loop through each strategy
         for strategy, method in strategies:
             print("Budget ",b," Strategy ",strategy," Method ",method)
@@ -659,4 +690,49 @@ for i,experiment in enumerate(experiments):
                                     strategy, 
                                     method)
 
+
+embedding_type = "gradients" #Type of the representation to use (gradients/features)
+model_name = 'ResNet18' #Model to use for training
+initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+ # Model Creation
+model = create_model(model_name, num_cls, device, embedding_type)
+strategies = [
+    
+    
+    ("AL", "badge"),
+    ("AL", 'us'),
+    ("AL", "glister"),
+    ("AL", 'gradmatch-tss'),
+    ("AL", 'coreset'),
+    ("AL", 'leastconf'),
+    ("AL", 'margin'),
+    
+    
+]
+
+for i,experiment in enumerate(experiments):
+    seed=seeds[i]
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    run=experiment
+    device_id = 0
+    device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
+
+    # Loop for each budget from 50 to 400 in intervals of 50
+    for b in budgets:
+        # Loop through each strategy
+        for strategy, method in strategies:
+            print("Budget ",b," Strategy ",strategy," Method ",method)
+            run_targeted_selection(data_name, 
+                                    datadir, 
+                                    feature, 
+                                    model_name, 
+                                    b,             # updated budget
+                                    split_cfg, 
+                                    learning_rate, 
+                                    run, 
+                                    device, 
+                                    computeClassErrorLog,
+                                    strategy, 
+                                    method)
 

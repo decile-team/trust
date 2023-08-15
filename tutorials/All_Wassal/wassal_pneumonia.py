@@ -260,14 +260,14 @@ def analyze_simplex(args, unlabeled_set, simplex_query):
 
 # %%
 feature = "classimb"
-device_id = 0
-run="exp2"
+
 # datadir = 'data/'
 datadir = '/data/medmnist' #contains the npz file of the data_name dataset listed below
 data_name = 'pneumoniamnist'
 
 learning_rate = 0.0003
 computeClassErrorLog = True
+device_id = 0
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -363,7 +363,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
    
   
-    strategy_args = {'batch_size': 1000, 'device':device, 'embedding_type':'features', 'keep_embedding':True,'lr':learning_rate}
+    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':'features', 'keep_embedding':True,'lr':learning_rate}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
     if(strategy == "AL"):
@@ -641,70 +641,24 @@ experiments=['exp1','exp2','exp3','exp4','exp5']
 seeds=[42,43,44,45,46]
 budgets=[5,10,15,20,25]
 
-# embedding_type = "features" #Type of the representation to use (gradients/features)
-# model_name = 'ResNet18' #Model to use for training
-# initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
-#  # Model Creation
-# model = create_model(model_name, num_cls, device, embedding_type)
-# #List of strategies
-# strategies = [
-    
-    
-#     ("WASSAL", "WASSAL"),
-#     ("WASSAL_P", "WASSAL_P"),
-#     ("SIM", 'fl1mi'),
-#     ("SIM", 'fl2mi'),
-#     ("SIM", 'gcmi'),
-#     ("SIM", 'logdetmi'),
-#     ('SCMI', 'flcmi'),
-#     ('SCMI', 'logdetcmi'),
-#     ("random", 'random'),
-    
-# ]
-
-# for i,experiment in enumerate(experiments):
-#     seed=seeds[i]
-#     torch.manual_seed(seed)
-#     np.random.seed(seed)
-#     run=experiment
-#     device_id = 0
-#     device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
-
-#     # Loop for each budget from 50 to 400 in intervals of 50
-#     for b in budgets:
-#         # Loop through each strategy
-#         for strategy, method in strategies:
-#             print("Budget ",b," Strategy ",strategy," Method ",method)
-#             run_targeted_selection(data_name, 
-#                                     datadir, 
-#                                     feature, 
-#                                     model_name, 
-#                                     b,             # updated budget
-#                                     split_cfg, 
-#                                     learning_rate, 
-#                                     run, 
-#                                     device, 
-#                                     computeClassErrorLog,
-#                                     strategy, 
-#                                     method)
-
-
-embedding_type = "gradients" #Type of the representation to use (gradients/features)
+embedding_type = "features" #Type of the representation to use (gradients/features)
 model_name = 'ResNet18' #Model to use for training
 initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
  # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
+#List of strategies
 strategies = [
     
     
-    ("AL", "badge"),
-    ("AL", 'us'),
-    ("AL", "glister"),
-    ("AL", 'gradmatch-tss'),
-    ("AL", 'coreset'),
-    ("AL", 'leastconf'),
-    ("AL", 'margin'),
-    
+    ("WASSAL", "WASSAL"),
+    ("WASSAL_P", "WASSAL_P"),
+    ("SIM", 'fl1mi'),
+    ("SIM", 'fl2mi'),
+    ("SIM", 'gcmi'),
+    ("SIM", 'logdetmi'),
+    ('SCMI', 'flcmi'),
+    ('SCMI', 'logdetcmi'),
+    ("random", 'random'),
     
 ]
 
@@ -733,3 +687,49 @@ for i,experiment in enumerate(experiments):
                                     computeClassErrorLog,
                                     strategy, 
                                     method)
+
+
+# embedding_type = "gradients" #Type of the representation to use (gradients/features)
+# model_name = 'ResNet18' #Model to use for training
+# initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+#  # Model Creation
+# model = create_model(model_name, num_cls, device, embedding_type)
+# strategies = [
+    
+    
+#     ("AL", "badge"),
+#     ("AL", 'us'),
+#     ("AL", "glister"),
+#     ("AL", 'gradmatch-tss'),
+#     ("AL", 'coreset'),
+#     ("AL", 'leastconf'),
+#     ("AL", 'margin'),
+    
+    
+# ]
+
+# for i,experiment in enumerate(experiments):
+#     seed=seeds[i]
+#     torch.manual_seed(seed)
+#     np.random.seed(seed)
+#     run=experiment
+#     device_id = 0
+#     device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
+
+#     # Loop for each budget from 50 to 400 in intervals of 50
+#     for b in budgets:
+#         # Loop through each strategy
+#         for strategy, method in strategies:
+#             print("Budget ",b," Strategy ",strategy," Method ",method)
+#             run_targeted_selection(data_name, 
+#                                     datadir, 
+#                                     feature, 
+#                                     model_name, 
+#                                     b,             # updated budget
+#                                     split_cfg, 
+#                                     learning_rate, 
+#                                     run, 
+#                                     device, 
+#                                     computeClassErrorLog,
+#                                     strategy, 
+#                                     method)
