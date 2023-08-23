@@ -347,7 +347,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     bud = budget
    
     # Variables to store accuracies
-    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=5 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -609,6 +609,97 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
                         num_ep+=1
                     timing[i] = time.time() - start_time
+            #if WASSAL_P   do a softsubsetted training with query and private before AL training
+            elif(strategy=="WASSAL_P"):
+            #label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
+                n=2*budget
+                # Extract images and targets from weighted_lake_set
+                images = [lake_set[i][0] for i in range(len(lake_set))]
+                targets=torch.tensor(sel_cls_idx[0])
+                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
+                #just take the top 10 based on sorted simplex_query
+                simplex_query=simplex_query.detach().cpu().numpy()
+                # Get the indices that would sort the array in descending order
+                sorted_indices = simplex_query.argsort()[::-1]
+                # Extract the top n indices
+                #top_n_indices = sorted_indices[budget+1:n*2]
+                top_n_indices = sorted_indices[:budget]
+                # Reorder images and targets based on these indices
+                small_images = [images[i] for i in top_n_indices]
+                small_targets = targets[top_n_indices.copy()]
+                # Update simplex_query to only contain top n values
+                small_simplex_query = simplex_query[top_n_indices]
+
+                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query)
+
+                #load weighted_lakset into a weighted dataloader
+                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
+                                                shuffle=False, pin_memory=True)
+                #for private
+                images = [lake_set[i][0] for i in range(len(lake_set))]
+                targets=torch.tensor(0)
+                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
+                #just take the top 10 based on sorted simplex_private
+                simplex_private=simplex_private.detach().cpu().numpy()
+                # Get the indices that would sort the array in descending order
+                sorted_indices = simplex_private.argsort()[::-1]
+                # Extract the top n indices
+                #top_n_indices = sorted_indices[budget+1:n*2]
+                top_n_indices = sorted_indices[:budget]
+                # Reorder images and targets based on these indices
+                small_private_images = [images[i] for i in top_n_indices]
+                small_private_targets = targets[top_n_indices.copy()]
+                # Update simplex_private to only contain top n values
+                small_simplex_private = simplex_private[top_n_indices]
+
+                weighted_private_lake_set = WeightedDataset(small_private_images,small_private_targets, small_simplex_private)
+
+                #load weighted_private_lakset into a weighted dataloader 
+                weighted_private_lakeloader = torch.utils.data.DataLoader(weighted_private_lake_set, batch_size=trn_batch_size,
+                                                shuffle=False, pin_memory=True)
+                
+                #start training
+                print("starting weighted training for WASSAL with hypothesized labels:"+str(sel_cls_idx))
+                start_time = time.time()
+                num_ep=1
+                while(full_trn_acc[i]<0.99 and num_ep<100):
+                    model.train()
+                    for batch_idx, (inputs, targets,simplex_query,simplex_private) in enumerate(weighted_lakeloader):
+                        # Variables in Pytorch are differentiable.
+                        inputs = inputs.to(device)
+                        targets = targets.to(device)
+                        
+                        simplex_query=simplex_query.to(device)
+                        simplex_private=simplex_private.to(device)
+                        # This will zero out the gradients for this batch.
+                        optimizer.zero_grad()
+                        outputs = model(inputs)
+                        target_loss_per_sample=criterion(outputs, targets)
+                        loss = (simplex_query*target_loss_per_sample).sum()
+                        loss.backward()
+                        optimizer.step()
+                    full_trn_loss = 0
+                    full_trn_correct = 0
+                    full_trn_total = 0
+                    model.eval()
+                    with torch.no_grad():
+                        for batch_idx, (inputs, targets,simplex_query) in enumerate(weighted_lakeloader):
+                            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
+                            outputs = model(inputs)
+                            loss = criterion(outputs, targets)
+                            full_trn_loss += loss.item()
+                            _, predicted = outputs.max(1)
+                            full_trn_total += targets.size(0)
+                            full_trn_correct += predicted.eq(targets).sum().item()
+                        full_trn_acc[i] = full_trn_correct / full_trn_total
+                        print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
+                        num_ep+=1
+                    timing[i] = time.time() - start_time
+        
+
+            
+
+
                     
             print("starting AL training")
             #augment the train_set with selected indices from the lake
