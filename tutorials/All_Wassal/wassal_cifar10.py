@@ -50,7 +50,10 @@ from distil.active_learning_strategies.core_set import CoreSet
 from distil.active_learning_strategies.least_confidence_sampling import LeastConfidenceSampling
 from distil.active_learning_strategies.margin_sampling import MarginSampling
 
-
+seed=42
+torch.manual_seed(seed)
+np.random.seed(seed)
+random.seed(seed)
 from trust.utils.utils import *
 from trust.utils.viz import tsne_smi
 
@@ -257,17 +260,15 @@ def analyze_simplex(args, unlabeled_set, simplex_query):
 
 # %%
 feature = "classimb"
-
+#just to circumvent an error UnboundLocalError: local variable 'model' referenced before assignment
 
 # datadir = 'data/'
 datadir = '/data' #contains the npz file of the data_name dataset listed below
 data_name = 'cifar10'
-model_name = 'ResNet18'
+
 learning_rate = 0.0003
 computeClassErrorLog = True
-run="exp1"
-device_id = 0
-device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
+
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
 visualize_tsne = False
 num_cls = 10
@@ -287,7 +288,7 @@ split_cfg = {"num_cls_imbalance":2, #Number of rare classes
              "per_class_train":1000,  #Number of samples per unrare class in the train dataset
              "per_class_val":5, #Number of samples per unrare class in the validation dataset
              "per_class_lake":3000} #Number of samples per unrare class in the unlabeled dataset
-
+print("split_cfg:",split_cfg)
 
 # %% [markdown]
 # # Targeted Selection Algorithm
@@ -303,7 +304,7 @@ split_cfg = {"num_cls_imbalance":2, #Number of rare classes
 # %%
 def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, split_cfg, learning_rate, run,
                 device, computeErrorLog, strategy="SIM", sf=""):
-
+    
     #load the dataset in the class imbalance setting
     train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_dataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
     print("Indices of randomly selected classes for imbalance: ", sel_cls_idx)
@@ -539,8 +540,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 #           Reinit train and lake loaders with new splits and reinit the model
             trainloader = torch.utils.data.DataLoader(train_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True)
             lakeloader = torch.utils.data.DataLoader(lake_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True)
-            model = create_model(model_name, num_cls, device, strategy_args['embedding_type'])
-            optimizer = optimizer_without_scheduler(model, learning_rate)
+            #model = create_model(model_name, num_cls, device, strategy_args['embedding_type'])
+            #optimizer = optimizer_without_scheduler(model, learning_rate)
                 
         #Start training
         start_time = time.time()
@@ -641,13 +642,16 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 # %%
 experiments=['exp1','exp2','exp3','exp4','exp5']
 seeds=[42,43,44,45,46]
-budgets=[5,10,15,20,25]
+budgets=[50,100,150,200,250,300,350,400]
+device_id = 1
+device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
 embedding_type = "features" #Type of the representation to use (gradients/features)
 model_name = 'ResNet18' #Model to use for training
-initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate)
  # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
+
 #List of strategies
 strategies = [
     
@@ -669,9 +673,7 @@ for i,experiment in enumerate(experiments):
     torch.manual_seed(seed)
     np.random.seed(seed)
     run=experiment
-    device_id = 0
-    device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
-
+    
     # Loop for each budget from 50 to 400 in intervals of 50
     for b in budgets:
         # Loop through each strategy
@@ -715,9 +717,7 @@ for i,experiment in enumerate(experiments):
     torch.manual_seed(seed)
     np.random.seed(seed)
     run=experiment
-    device_id = 0
-    device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
-
+    
     # Loop for each budget from 50 to 400 in intervals of 50
     for b in budgets:
         # Loop through each strategy

@@ -252,6 +252,25 @@ def analyze_simplex(args, unlabeled_set, simplex_query):
         query_weight = torch.sum(simplex_query[query_idx])
         total_query_weight += query_weight
     print("Weight of Query samples in simplex_query: {}".format(total_query_weight))
+    
+class WeightedDataset(Dataset):
+    def __init__(self, imgs,targets, simplex_query):
+        self.imgs = imgs
+        self.targets=targets
+        self.simplex_query = simplex_query
+        
+
+    def __len__(self):
+        return len(self.imgs)
+
+    def __getitem__(self, idx):
+        if torch.is_tensor(idx):
+            idx = idx.tolist()
+        image = self.imgs[idx]
+        target=self.targets[idx]
+        t = self.simplex_query[idx].item()
+        
+        return (image, target,t)
 
 
 # %% [markdown]
@@ -328,7 +347,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     bud = budget
    
     # Variables to store accuracies
-    num_rounds=5 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -526,7 +545,72 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             lake_subset_idxs = subset #indices wrt to lake that need to be removed from the lake
             perClsSel = getPerClassSel(true_lake_set, lake_subset_idxs, num_cls)
             res_dict['sel_per_cls'].append(perClsSel)
-            
+
+            #if WASSAL do a softsubsetted training before AL training
+            if(strategy=="WASSAL"):
+            #label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
+                n=2*budget
+                # Extract images and targets from weighted_lake_set
+                images = [lake_set[i][0] for i in range(len(lake_set))]
+                targets=torch.tensor(sel_cls_idx[0])
+                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
+                #just take the top 10 based on sorted simplex_query
+                simplex_query=simplex_query.detach().cpu().numpy()
+                # Get the indices that would sort the array in descending order
+                sorted_indices = simplex_query.argsort()[::-1]
+                # Extract the top n indices
+                #top_n_indices = sorted_indices[budget+1:n*2]
+                top_n_indices = sorted_indices[:budget]
+                # Reorder images and targets based on these indices
+                small_images = [images[i] for i in top_n_indices]
+                small_targets = targets[top_n_indices.copy()]
+                # Update simplex_query to only contain top n values
+                small_simplex_query = simplex_query[top_n_indices]
+
+                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query)
+
+                #load weighted_lakset into a weighted dataloader
+                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
+                                                shuffle=False, pin_memory=True)
+                
+                #start training
+                print("starting weighted training for WASSAL with hypothesized labels:"+str(sel_cls_idx))
+                start_time = time.time()
+                num_ep=1
+                while(full_trn_acc[i]<0.99 and num_ep<100):
+                    model.train()
+                    for batch_idx, (inputs, targets,simplex_query) in enumerate(weighted_lakeloader):
+                        # Variables in Pytorch are differentiable.
+                        inputs = inputs.to(device)
+                        targets = targets.to(device)
+                        
+                        simplex_query=simplex_query.to(device)
+                        # This will zero out the gradients for this batch.
+                        optimizer.zero_grad()
+                        outputs = model(inputs)
+                        target_loss_per_sample=criterion(outputs, targets)
+                        loss = (simplex_query*target_loss_per_sample).sum()
+                        loss.backward()
+                        optimizer.step()
+                    full_trn_loss = 0
+                    full_trn_correct = 0
+                    full_trn_total = 0
+                    model.eval()
+                    with torch.no_grad():
+                        for batch_idx, (inputs, targets,simplex_query) in enumerate(weighted_lakeloader):
+                            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
+                            outputs = model(inputs)
+                            loss = criterion(outputs, targets)
+                            full_trn_loss += loss.item()
+                            _, predicted = outputs.max(1)
+                            full_trn_total += targets.size(0)
+                            full_trn_correct += predicted.eq(targets).sum().item()
+                        full_trn_acc[i] = full_trn_correct / full_trn_total
+                        print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
+                        num_ep+=1
+                    timing[i] = time.time() - start_time
+                    
+            print("starting AL training")
             #augment the train_set with selected indices from the lake
             train_set, lake_set, true_lake_set, add_val_set = aug_train_subset(train_set, lake_set, true_lake_set, subset, lake_subset_idxs, budget, True) #aug train with random if budget is not filled
             print("After augmentation, size of train_set: ", len(train_set), " unlabeled set: ", len(lake_set), " val set: ", len(val_set))
@@ -536,11 +620,13 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             lakeloader = torch.utils.data.DataLoader(lake_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True)
             #model = create_model(model_name, num_cls, device, strategy_args['embedding_type'])
             #optimizer = optimizer_without_scheduler(model, learning_rate)
-                
+            
+
         #Start training
         start_time = time.time()
         num_ep=1
 #         while(num_ep<150):
+        #first train until full training accuracy is 0.99
         while(full_trn_acc[i]<0.99 and num_ep<100):
             model.train()
             for batch_idx, (inputs, targets) in enumerate(trainloader):
@@ -627,7 +713,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     with open(os.path.join(all_logs_dir, exp_name+".json"), 'w') as fp:
         json.dump(res_dict, fp)
     #Print overall acc improvement and rare class acc improvement, show that TL selected relevant points in space, is possible show some images
-#     print_final_results(res_dict, sel_cls_idx)
+    print_final_results(res_dict, sel_cls_idx)
     print("Total gain in accuracy: ",res_dict['test_acc'][i]-res_dict['test_acc'][0])
     
 #     tsne_plt.show()
@@ -640,6 +726,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 experiments=['exp1','exp2','exp3','exp4','exp5']
 seeds=[42,43,44,45,46]
 budgets=[5,10,15,20,25]
+device_id = 0
+device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
 embedding_type = "features" #Type of the representation to use (gradients/features)
 model_name = 'ResNet18' #Model to use for training
@@ -651,13 +739,13 @@ strategies = [
     
     
     ("WASSAL", "WASSAL"),
-    ("WASSAL_P", "WASSAL_P"),
+    #("WASSAL_P", "WASSAL_P"),
     ("SIM", 'fl1mi'),
     ("SIM", 'fl2mi'),
     ("SIM", 'gcmi'),
     ("SIM", 'logdetmi'),
-    ('SCMI', 'flcmi'),
-    ('SCMI', 'logdetcmi'),
+    #('SCMI', 'flcmi'),
+    #('SCMI', 'logdetcmi'),
     ("random", 'random'),
     
 ]
@@ -667,9 +755,7 @@ for i,experiment in enumerate(experiments):
     torch.manual_seed(seed)
     np.random.seed(seed)
     run=experiment
-    device_id = 0
-    device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
-
+    
     # Loop for each budget from 50 to 400 in intervals of 50
     for b in budgets:
         # Loop through each strategy
@@ -713,8 +799,6 @@ for i,experiment in enumerate(experiments):
 #     torch.manual_seed(seed)
 #     np.random.seed(seed)
 #     run=experiment
-#     device_id = 0
-#     device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
 #     # Loop for each budget from 50 to 400 in intervals of 50
 #     for b in budgets:

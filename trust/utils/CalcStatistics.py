@@ -4,22 +4,31 @@ import csv
 import matplotlib.pyplot as plt
 #for cifar
 #base_dir = "/home/wassal/trust-wassal/tutorials/results/cifar10/classimb"
-#budgets=['50', '100', '150', '200', '250', '300', '350', '400', '450', '500']
-filename = "output_statistics_cifr10_classimb_withAL_5rounds_"
+#budgets=['50', '100', '150', '200']
+
+#budgets=['5']
+#filename = "output_statistics_cifar_classimb_withAL_"
+rounds=2
 
 #for pneumonia
-base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds5"
-budgets=['5', '10', '15', '20', '25']
+base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
+#budgets=['5', '10', '15', '20', '25']
+budgets=['5','10','15']
+filename = "output_statistics_pneumo_classimbs"
 
-strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
-strategies = ["WASSAL", "WASSAL_P","random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin"]
+#strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
+#strategy_group="allstrategies"
+#strategies = ["WASSAL", "WASSAL_P","random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin"]
+#strategy_group="AL"
 #strategies = ["WASSAL_P","random","logdetcmi","flcmi"]
-#strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi", "random"]
+#strategy_group="withprivate"
+strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi", "random"]
+strategy_group="targetonly"
+#experiments=['exp1','exp2','exp3','exp4','exp5']
+experiments=['exp1','exp2']
 
-experiments=['exp1','exp2','exp3','exp4','exp5']
-rounds=5
 # Prepare the CSV file for saving stats
-output_path = os.path.join(base_dir, filename+"rounds_"+str(rounds)+".csv")
+output_path = os.path.join(base_dir, filename+"_group_"+strategy_group+"_rounds_"+str(rounds))
 
 
 def compute_stats(gains):
@@ -28,9 +37,9 @@ def compute_stats(gains):
     sd_gain = variance ** 0.5
     return mean_gain, variance, sd_gain
 
+#mean gain of targeted class
 
-
-with open(output_path, "w", newline='') as csvfile:
+with open(output_path+".csv", "w", newline='') as csvfile:
     writer = csv.writer(csvfile)
     writer.writerow(["Strategy", "Budget", "Mean Gain", "Variance", "Standard Deviation"])
 
@@ -67,7 +76,7 @@ with open(output_path, "w", newline='') as csvfile:
                     #for i in range(0,5):
                     #gains=
                     y1 = df.iloc[0, 1]
-                    y2 = df.iloc[4, 1]
+                    y2 = df.iloc[1, 1]
                     gain = y2 - y1
                     gains.append(gain)
                 if not gains:
@@ -116,6 +125,94 @@ plt.title('Mean Gain by Strategy for '+str(rounds)+'AL rounds')
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.tight_layout()
-plt.savefig(os.path.join(base_dir, filename+"rounds_"+str(rounds)+".png"), dpi=300, bbox_inches='tight', pad_inches=0.1)
+plt.savefig(output_path+".png", dpi=300, bbox_inches='tight', pad_inches=0.1)
 plt.show()
 
+#mean gain of all classes
+with open(output_path+"_allclasses.csv", "w", newline='') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(["Strategy", "Budget", "Mean Gain", "Variance", "Standard Deviation"])
+
+    # Store data in dictionaries
+    data = {}
+    
+    #for each budget
+    for budget in budgets:
+         
+        #for each strategy
+        for strategy in strategies:
+           # Reset these lists for each strategy
+            means = []
+            sds = []
+            budgets_list = []  # renamed to avoid conflict with 'budgets'
+            
+            #continue if a path does not exist with strategy and budget
+            if not os.path.exists(os.path.join(base_dir, strategy,str(budget))):
+                continue
+
+            #calculate mean and sd of strategy across all runs
+            gains = []
+            for experiment in experiments:
+                path = os.path.join(base_dir, strategy,str(budget),experiment)
+                if not os.path.exists(path):
+                    continue
+                for csv_file in os.listdir(path):
+                    if csv_file.endswith('.csv'):
+                        csv_path = os.path.join(path, csv_file)
+                    else:
+                        continue
+                    df = pd.read_csv(csv_path,header=None)
+                    #cumlative gains from each row
+                    #for i in range(0,5):
+                    #gains=
+                    y1 = df.iloc[0, 2]
+                    y2 = df.iloc[1, 2]
+                    gain = y2 - y1
+                    gains.append(gain)
+                if not gains:
+                    continue
+            
+             # Compute stats after processing all experiments for the current strategy and budget
+            mean_gain, variance, sd_gain = compute_stats(gains)
+            writer.writerow([strategy, budget, mean_gain, variance, sd_gain])
+            print(f"Strategy: {strategy}, Budget: {budget}")
+            print("Mean Gain:", mean_gain)
+            print("Variance:", variance)
+            print("Standard Deviation of Gain:", sd_gain)
+            print("----------------------------------------------------")
+
+            # Save data to the dictionary
+            if gains:
+                
+                if strategy not in data:
+                    data[strategy] = {'means': [], 'sds': [], 'budgets': []}
+                data[strategy]['means'].append(mean_gain)
+                data[strategy]['sds'].append(sd_gain)
+                data[strategy]['budgets'].append(budget)
+    print(f"Statistics saved to {output_path}")
+
+# Define 10 distinct colors
+colors = [
+    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+    '#1fa2b4', '#b27f0e', '#a2a02c', '#662728', '#9467ad',
+    '#2c564b', '#e377a2', '#a27f7f', '#2c2d22', '#b7beaf'
+]
+
+# Plot data
+plt.figure(figsize=(10, 6))
+color_index = 0
+
+# Loop through the data dictionary to extract the values
+for strategy, values in data.items():
+    plt.plot(values['budgets'], values['means'], label=strategy,color=colors[color_index])
+    color_index += 1
+    #plt.errorbar(values['budgets'], values['means'],values['sds'], label=strategy)
+
+plt.xlabel('Budget')
+plt.ylabel('Mean Gain for all classes')
+plt.title('Mean Gain by Strategy for '+str(rounds)+'AL rounds')
+plt.legend()
+plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+plt.tight_layout()
+plt.savefig(output_path+"_allclasses.png", dpi=300, bbox_inches='tight', pad_inches=0.1)
