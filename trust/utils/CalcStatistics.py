@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 
 #budgets=['5']
 #filename = "output_statistics_cifar_classimb_withAL_"
-rounds=5
+rounds=2
 
 #for pneumonia
 base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
-#budgets=['5', '10', '15', '20', '25']
-budgets=['5', '10', '15', '20']
+budgets=['5', '10', '15', '20', '25']
+#budgets=['5','10']
 filename = "output_statistics_pneumo_classimbs"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
@@ -21,9 +21,9 @@ filename = "output_statistics_pneumo_classimbs"
 #strategies = ["WASSAL", "WASSAL_P","random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin"]
 #strategy_group="AL"
 #strategies = ["WASSAL_P","random","logdetcmi","flcmi"]
-#strategy_group="withprivate"
-strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi", "random"]
-strategy_group="targetonly"
+strategy_group="withprivate"
+strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","WASSAL_P","logdetcmi","flcmi"]
+#strategy_group="targetonly"
 #experiments=['exp1','exp2','exp3','exp4','exp5']
 experiments=['exp1']
 

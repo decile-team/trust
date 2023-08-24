@@ -56,7 +56,7 @@ np.random.seed(seed)
 random.seed(seed)
 from trust.utils.utils import *
 from trust.utils.viz import tsne_smi
-
+import math
 # %% [markdown]
 # ### Helper functions
 
@@ -254,10 +254,12 @@ def analyze_simplex(args, unlabeled_set, simplex_query):
     print("Weight of Query samples in simplex_query: {}".format(total_query_weight))
     
 class WeightedDataset(Dataset):
-    def __init__(self, imgs,targets, simplex_query):
+    def __init__(self, imgs,targets, simplex_query,private_targets,simplex_private):
         self.imgs = imgs
         self.targets=targets
         self.simplex_query = simplex_query
+        self.private_targets = private_targets
+        self.simplex_private = simplex_private
         
 
     def __len__(self):
@@ -269,8 +271,10 @@ class WeightedDataset(Dataset):
         image = self.imgs[idx]
         target=self.targets[idx]
         t = self.simplex_query[idx].item()
+        private_target = self.private_targets[idx] if self.private_targets is not None else None
+        p = self.simplex_private[idx].item() if self.simplex_private is not None else None
         
-        return (image, target,t)
+        return (image, target,t,private_target,p)
 
 
 # %% [markdown]
@@ -347,7 +351,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     bud = budget
    
     # Variables to store accuracies
-    num_rounds=5 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -549,7 +553,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             #if WASSAL do a softsubsetted training before AL training
             if(strategy=="WASSAL"):
             #label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
-                n=2*budget
+                softSubbudget= math.ceil(budget)
                 # Extract images and targets from weighted_lake_set
                 images = [lake_set[i][0] for i in range(len(lake_set))]
                 targets=torch.tensor(sel_cls_idx[0])
@@ -560,14 +564,14 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 sorted_indices = simplex_query.argsort()[::-1]
                 # Extract the top n indices
                 #top_n_indices = sorted_indices[budget+1:n*2]
-                top_n_indices = sorted_indices[:budget]
+                top_n_indices = sorted_indices[:softSubbudget]
                 # Reorder images and targets based on these indices
                 small_images = [images[i] for i in top_n_indices]
                 small_targets = targets[top_n_indices.copy()]
                 # Update simplex_query to only contain top n values
                 small_simplex_query = simplex_query[top_n_indices]
 
-                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query)
+                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query,None,None)
 
                 #load weighted_lakset into a weighted dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
@@ -579,7 +583,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 num_ep=1
                 while(full_trn_acc[i]<0.99 and num_ep<100):
                     model.train()
-                    for batch_idx, (inputs, targets,simplex_query) in enumerate(weighted_lakeloader):
+                    for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
                         # Variables in Pytorch are differentiable.
                         inputs = inputs.to(device)
                         targets = targets.to(device)
@@ -612,7 +616,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             #if WASSAL_P   do a softsubsetted training with query and private before AL training
             elif(strategy=="WASSAL_P"):
             #label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
-                n=2*budget
+                softSubbudget=math.ceil(budget)
                 # Extract images and targets from weighted_lake_set
                 images = [lake_set[i][0] for i in range(len(lake_set))]
                 targets=torch.tensor(sel_cls_idx[0])
@@ -623,7 +627,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 sorted_indices = simplex_query.argsort()[::-1]
                 # Extract the top n indices
                 #top_n_indices = sorted_indices[budget+1:n*2]
-                top_n_indices = sorted_indices[:budget]
+                top_n_indices = sorted_indices[:softSubbudget]
                 # Reorder images and targets based on these indices
                 small_images = [images[i] for i in top_n_indices]
                 small_targets = targets[top_n_indices.copy()]
@@ -636,19 +640,19 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
                                                 shuffle=False, pin_memory=True)
                 #for private
-                images = [lake_set[i][0] for i in range(len(lake_set))]
-                targets=torch.tensor(0)
-                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
+                private_images = [lake_set[i][0] for i in range(len(lake_set))]
+                private_targets=torch.tensor(0)
+                private_targets=private_targets.repeat(len(lake_set)//len(sel_cls_idx))
                 #just take the top 10 based on sorted simplex_private
                 simplex_private=simplex_private.detach().cpu().numpy()
                 # Get the indices that would sort the array in descending order
                 sorted_indices = simplex_private.argsort()[::-1]
                 # Extract the top n indices
                 #top_n_indices = sorted_indices[budget+1:n*2]
-                top_n_indices = sorted_indices[:budget]
+                top_n_indices = sorted_indices[:softSubbudget]
                 # Reorder images and targets based on these indices
-                small_private_images = [images[i] for i in top_n_indices]
-                small_private_targets = targets[top_n_indices.copy()]
+                small_private_images = [private_images[i] for i in top_n_indices]
+                small_private_targets = private_targets[top_n_indices.copy()]
                 # Update simplex_private to only contain top n values
                 small_simplex_private = simplex_private[top_n_indices]
 
@@ -659,25 +663,30 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                                                 shuffle=False, pin_memory=True)
                 
                 #start training
-                print("starting weighted training for WASSAL with hypothesized labels:"+str(sel_cls_idx))
+                print("starting weighted training for WASSAL_P with hypothesized labels:"+str(sel_cls_idx))
                 start_time = time.time()
                 num_ep=1
                 while(full_trn_acc[i]<0.99 and num_ep<100):
                     model.train()
-                    for batch_idx, (inputs, targets,simplex_query,simplex_private) in enumerate(weighted_lakeloader):
+                    for (batch_idx, (inputs1, targets1, simplex_query1)), (_, (inputs2, targets2, simplex_private)) in zip(enumerate(weighted_lakeloader), enumerate(weighted_private_lakeloader)):
                         # Variables in Pytorch are differentiable.
-                        inputs = inputs.to(device)
-                        targets = targets.to(device)
-                        
-                        simplex_query=simplex_query.to(device)
+                        inputs1 = inputs1.to(device)
+                        targets1 = targets1.to(device)
+                        simplex_query1=simplex_query1.to(device)
+                        inputs2 = inputs2.to(device)
+                        targets2 = targets2.to(device)
                         simplex_private=simplex_private.to(device)
                         # This will zero out the gradients for this batch.
                         optimizer.zero_grad()
-                        outputs = model(inputs)
-                        target_loss_per_sample=criterion(outputs, targets)
-                        loss = (simplex_query*target_loss_per_sample).sum()
+                        outputs1 = model(inputs1)
+                        outputs2 = model(inputs2)
+                        target_loss_per_sample1=criterion(outputs1, targets1)
+                        target_loss_per_sample2=criterion(outputs2, targets2)
+                        loss = (simplex_query1*target_loss_per_sample1).sum()+(simplex_private*target_loss_per_sample2).sum()
                         loss.backward()
                         optimizer.step()
+
+
                     full_trn_loss = 0
                     full_trn_correct = 0
                     full_trn_total = 0
@@ -830,13 +839,13 @@ strategies = [
     
     
     ("WASSAL", "WASSAL"),
-    #("WASSAL_P", "WASSAL_P"),
+    ("WASSAL_P", "WASSAL_P"),
     ("SIM", 'fl1mi'),
     ("SIM", 'fl2mi'),
     ("SIM", 'gcmi'),
     ("SIM", 'logdetmi'),
-    #('SCMI', 'flcmi'),
-    #('SCMI', 'logdetcmi'),
+    ('SCMI', 'flcmi'),
+    ('SCMI', 'logdetcmi'),
     ("random", 'random'),
     
 ]
