@@ -21,11 +21,14 @@ filename = "output_statistics_pneumo_classimbs"
 #strategies = ["WASSAL", "WASSAL_P","random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin"]
 #strategy_group="AL"
 #strategies = ["WASSAL_P","random","logdetcmi","flcmi"]
-strategy_group="withprivate"
-strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","WASSAL_P","logdetcmi","flcmi"]
-#strategy_group="targetonly"
-#experiments=['exp1','exp2','exp3','exp4','exp5']
-experiments=['exp1']
+#strategy_group="withprivate"
+#strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi","fl1mi_soft", "fl2mi_soft", "gcmi_soft", "logdetmi_soft", "random","WASSAL_P","logdetcmi","flcmi","logdetcmi_soft","flcmi_soft"]
+#strategy_group="WASSAL_SOFT"
+strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_soft","us_soft","glister_soft","coreset_soft","glister_soft","gradmatch-tss_soft","leastconf_soft","margin_soft"]
+strategy_group="AL_WITH_SOFT"
+
+experiments=['exp1','exp2','exp3','exp4','exp5']
+#experiments=['exp1']
 
 # Prepare the CSV file for saving stats
 output_path = os.path.join(base_dir, filename+"_group_"+strategy_group+"_rounds_"+str(rounds))
@@ -102,12 +105,38 @@ with open(output_path+".csv", "w", newline='') as csvfile:
     print(f"Statistics saved to {output_path}")
 
 # Define 10 distinct colors
+# colors = [
+#     '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+#     '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+#     '#1fa2b4', '#b27f0e', '#a2a02c', '#662728', '#9467ad',
+#     '#2c564b', '#e377a2', '#a27f7f', '#2c2d22', '#b7beaf'
+# ]
+#https://chat.openai.com/c/6b80df15-56ba-4584-aaee-38ecfbbdfc1d
+
 colors = [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-    '#1fa2b4', '#b27f0e', '#a2a02c', '#662728', '#9467ad',
-    '#2c564b', '#e377a2', '#a27f7f', '#2c2d22', '#b7beaf'
+    '#FF0000',  # Red
+    '#00FF00',  # Green
+    '#0000FF',  # Blue
+    '#FFFF00',  # Yellow
+    '#00FFFF',  # Aqua
+    '#FF00FF',  # Magenta
+    '#FF4500',  # OrangeRed
+    '#8A2BE2',  # BlueViolet
+    '#A52A2A',  # Brown
+    '#DEB887',  # BurlyWood
+    '#5F9EA0',  # CadetBlue
+    '#7FFF00',  # Chartreuse
+    '#D2691E',  # Chocolate
+    '#FF7F50',  # Coral
+    '#6495ED',  # CornflowerBlue
+    '#DC143C',  # Crimson
+    '#00CED1',  # DarkTurquoise
+    '#9400D3',  # DarkViolet
+    '#FF1493',  # DeepPink
+    '#00BFFF',  # DeepSkyBlue
 ]
+
+
     # Plot data
 # Plot data
 plt.figure(figsize=(10, 6))
@@ -116,12 +145,16 @@ color_index = 0
 # Loop through the data dictionary to extract the values
 for strategy, values in data.items():
     plt.plot(values['budgets'], values['means'], label=strategy,color=colors[color_index])
+    # Add the strategy name to the end of the line using plt.text()
+    x_pos = values['budgets'][-1]  # x-coordinate of the last point on the line
+    y_pos = values['means'][-1]    # y-coordinate of the last point on the line
+    plt.text(x_pos, y_pos, strategy, fontsize=12, color=colors[color_index])
     color_index += 1
     #plt.errorbar(values['budgets'], values['means'],values['sds'], label=strategy)
 
 plt.xlabel('Budget')
 plt.ylabel('Mean Gain for rare class')
-plt.title('Mean Gain by Strategy for '+str(rounds)+'AL rounds')
+plt.title('Mean Gain for rare class for '+str(rounds)+'AL rounds')
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.tight_layout()
@@ -191,13 +224,7 @@ with open(output_path+"_allclasses.csv", "w", newline='') as csvfile:
                 data[strategy]['budgets'].append(budget)
     print(f"Statistics saved to {output_path}")
 
-# Define 10 distinct colors
-colors = [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-    '#1fa2b4', '#b27f0e', '#a2a02c', '#662728', '#9467ad',
-    '#2c564b', '#e377a2', '#a27f7f', '#2c2d22', '#b7beaf'
-]
+
 
 # Plot data
 plt.figure(figsize=(10, 6))
@@ -206,12 +233,16 @@ color_index = 0
 # Loop through the data dictionary to extract the values
 for strategy, values in data.items():
     plt.plot(values['budgets'], values['means'], label=strategy,color=colors[color_index])
+    # Add the strategy name to the end of the line using plt.text()
+    x_pos = values['budgets'][-1]  # x-coordinate of the last point on the line
+    y_pos = values['means'][-1]    # y-coordinate of the last point on the line
+    plt.text(x_pos, y_pos, strategy, fontsize=12, color=colors[color_index])
     color_index += 1
     #plt.errorbar(values['budgets'], values['means'],values['sds'], label=strategy)
 
 plt.xlabel('Budget')
 plt.ylabel('Mean Gain for all classes')
-plt.title('Mean Gain by Strategy for '+str(rounds)+'AL rounds')
+plt.title('Mean Gain for all classes for '+str(rounds)+'AL rounds')
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.tight_layout()
@@ -280,13 +311,7 @@ with open(output_path+"_majorityclass.csv", "w", newline='') as csvfile:
                 data[strategy]['budgets'].append(budget)
     print(f"Statistics saved to {output_path}")
 
-# Define 10 distinct colors
-colors = [
-    '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
-    '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
-    '#1fa2b4', '#b27f0e', '#a2a02c', '#662728', '#9467ad',
-    '#2c564b', '#e377a2', '#a27f7f', '#2c2d22', '#b7beaf'
-]
+
 
 # Plot data
 plt.figure(figsize=(10, 6))
@@ -295,12 +320,16 @@ color_index = 0
 # Loop through the data dictionary to extract the values
 for strategy, values in data.items():
     plt.plot(values['budgets'], values['means'], label=strategy,color=colors[color_index])
+    # Add the strategy name to the end of the line using plt.text()
+    x_pos = values['budgets'][-1]  # x-coordinate of the last point on the line
+    y_pos = values['means'][-1]    # y-coordinate of the last point on the line
+    plt.text(x_pos, y_pos, strategy, fontsize=12, color=colors[color_index])
     color_index += 1
     #plt.errorbar(values['budgets'], values['means'],values['sds'], label=strategy)
 
 plt.xlabel('Budget')
 plt.ylabel('Mean Gain for majority class')
-plt.title('Mean Gain by Strategy for '+str(rounds)+'AL rounds')
+plt.title('Mean Gain for majority class for '+str(rounds)+'AL rounds')
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.tight_layout()

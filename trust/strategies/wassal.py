@@ -102,7 +102,8 @@ class WASSAL(Strategy):
         embedding_type = self.args['embedding_type'] if 'embedding_type' in self.args else "features"
         if(embedding_type=="features"):
             layer_name = self.args['layer_name'] if 'layer_name' in self.args else "avgpool"
-        
+        if(embedding_type=="gradients"):
+            gradType = self.args['gradType'] if 'gradType' in self.args else "bias_linear"
         loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.8)
         
         unlabeled_dataset_len=len(self.unlabeled_dataset)
@@ -164,7 +165,10 @@ class WASSAL(Strategy):
                 if(embedding_type == "features"):
                     unlabeled_features = self.get_feature_embedding(unlabeled_imgs, True, layer_name)
                     query_features = self.get_feature_embedding(query_imgs, True, layer_name)
-                    
+                if(embedding_type == "gradients"):
+                    unlabeled_features = self.get_grad_embedding(self.unlabeled_dataset, True, gradType)
+                    query_features = self.get_grad_embedding(self.query_dataset, False, gradType)
+          
                 unlabeled_features = unlabeled_features.view(unlabeled_features.shape[0], -1)
                 query_features = query_features.view(query_features.shape[0], -1)    
                 simplex_batch_query = simplex_query[batch_idx * unlabeled_dataloader.batch_size : (batch_idx + 1) * unlabeled_dataloader.batch_size]

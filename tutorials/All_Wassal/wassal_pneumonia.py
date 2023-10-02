@@ -352,7 +352,7 @@ print("split_cfg:",split_cfg)
 
 # %%
 def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, split_cfg, learning_rate, run,
-                device, computeErrorLog, strategy="SIM", sf=""):
+                device, computeErrorLog, strategy="SIM", sf="",embedding_type="features"):
 
     #load the dataset in the class imbalance setting
     train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_biodataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
@@ -379,7 +379,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     true_lake_set = copy.deepcopy(lake_set)
     # Budget for subset selection
     bud = budget
-   
+    #soft subset max budget % of the lake set
+    ss_max_budget = 20
     # Variables to store accuracies
     num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
@@ -416,7 +417,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
    
   
-    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':'features', 'keep_embedding':True,'lr':learning_rate}
+    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':learning_rate}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
     if(strategy == "AL"):
@@ -434,17 +435,59 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             strategy_sel = LeastConfidenceSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
         elif(sf=="margin"):
             strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+    #if AL_WITHSOFT
+    elif(strategy == "AL_WITHSOFT"):
+        for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        #
+        strategy_softsubset = WASSAL(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
+            
+        if(sf[:-5]=="badge"):
+           
+            strategy_sel = BADGE(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf[:-5]=="us"):
+            
+            strategy_sel = EntropySampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf[:-5]=="glister" or sf=="glister-tss"):
+            strategy_sel = GLISTER(train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set, typeOf='rand', lam=0.1)
+        elif(sf[:-5]=="gradmatch-tss"):
+            strategy_sel = GradMatchActive(train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set)
+        elif(sf[:-5]=="coreset"):
+            strategy_sel = CoreSet(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf[:-5]=="leastconf"):
+            strategy_sel = LeastConfidenceSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+        elif(sf[:-5]=="margin"):
+            strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
+
+
+
     elif(strategy == "SIM"):
         strategy_args['smi_function'] = sf
         strategy_args['optimizer'] = 'LazyGreedy'
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel = SMI(train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args)
+    elif(strategy == "SIM_WITHSOFT"):
+        #remove the '_soft' from the sf name
+        strategy_args['smi_function'] = sf[:-5]
+        strategy_args['optimizer'] = 'LazyGreedy'
+        for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        strategy_softsubset = WASSAL(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
+        strategy_sel = SMI(train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args)
+    
     elif(strategy == "SCMI"):
         strategy_args['scmi_function'] = sf
         strategy_args['optimizer'] = 'LazyGreedy'
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         strategy_sel=SCMI(train_set, unlabeled_lake_set, for_query_set, for_private_set, model, num_cls, strategy_args)
+    elif(strategy == "SCMI_WITHSOFT"):
+        #remove the '_soft' from the sf name
+        strategy_args['scmi_function'] = sf[:-5]
+        strategy_args['optimizer'] = 'LazyGreedy'
+        for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+        strategy_softsubset = WASSAL_P(train_set, unlabeled_lake_set,for_query_set, for_private_set,model,num_cls,strategy_args)
+        strategy_sel=SCMI(train_set, unlabeled_lake_set, for_query_set, for_private_set, model, num_cls, strategy_args)
+    
     elif(strategy == "random"):
         strategy_sel = RandomSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     if(strategy == "WASSAL"):
@@ -513,6 +556,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             #Remove true labels from the unlabeled dataset, the hypothesized labels are computed when select is called
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
             strategy_sel.update_data(train_set, unlabeled_lake_set)
+            strategy_sel.update_model(model)
             #compute the error log before every selection
             if(computeErrorLog):
                 tst_err_log, val_err_log, val_class_err_idxs = find_err_per_class(test_set, val_set, final_val_classifications, final_val_predictions, final_tst_classifications, final_tst_predictions, all_logs_dir, sf+"_"+str(bud))
@@ -525,7 +569,44 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         #make a dataloader for the misclassifications - only for experiments with targets
                         for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set),sel_cls_idx)
                         strategy_sel.update_queries(for_query_set)
+                        
                         print('size of query set',len(for_query_set))
+            #if SIM_WITHSOFT
+            elif(strategy=="SIM_WITHSOFT"):
+                if(sf.endswith("mi")):
+                    if(feature=="classimb"):
+                        #make a dataloader for the misclassifications - only for experiments with targets
+                        for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set),sel_cls_idx)
+                        strategy_softsubset.update_queries(for_query_set)
+                        strategy_sel.update_queries(for_query_set)
+                        
+                        print('size of query set',len(for_query_set))
+            #if SCMI_WITHSOFT
+            elif(strategy=="SCMI_WITHSOFT"):
+                if(sf.endswith("mi")):
+                    if(feature=="classimb"):
+                        #make a dataloader for the misclassifications - only for experiments with targets
+                        for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set),sel_cls_idx)
+                        for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                        strategy_softsubset.update_queries(for_query_set)
+                        strategy_softsubset.update_privates(for_private_set)
+                        strategy_sel.update_queries(for_query_set)
+                        strategy_sel.update_privates(for_private_set)
+                        
+                        print('size of query set',len(for_query_set))
+            #if AL_WITHSOFT
+            elif(strategy=="AL_WITHSOFT"):
+                if(sf=="glister-tss" or sf=="gradmatch-tss"):
+                    for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                    strategy_softsubset.update_queries(for_query_set)
+                    strategy_sel.update_queries(for_query_set)
+                    print('size of query set',len(for_query_set))
+                else:
+                    for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                    strategy_softsubset.update_queries(for_query_set)
+                    
+                    print('size of query set',len(for_query_set))
+
             elif(strategy=="AL"):
                 if(sf=="glister-tss" or sf=="gradmatch-tss"):
                     miscls_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
@@ -548,11 +629,13 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 #concatina the train and val sets
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 for_private_set=getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
+                
                 strategy_sel.update_queries(for_query_set)
                 strategy_sel.update_privates(for_private_set)
+                
                 print('size of query set',len(for_query_set))
 
-            strategy_sel.update_model(model)
+            
             if(strategy=="WASSAL"):
                 subset,simplex_query = strategy_sel.select(budget)
                 temp_args={}
@@ -565,6 +648,12 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 temp_args['device'] = device
                 temp_args['target'] = sel_cls_idx
                 #analyze_simplex(temp_args,lake_set,simplex_query)
+            elif(strategy=="SCMI_WITHSOFT"):
+                softsubset,soft_simplex_query,soft_simplex_private = strategy_softsubset.select(budget)
+                subset = strategy_sel.select(budget)
+            elif(strategy=="SMI_WITHSOFT"or strategy=="AL_WITHSOFT"):
+                softsubset,soft_simplex_query = strategy_softsubset.select(budget)
+                subset = strategy_sel.select(budget)
             else:
                 subset = strategy_sel.select(budget)
 
@@ -580,10 +669,144 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             perClsSel = getPerClassSel(true_lake_set, lake_subset_idxs, num_cls)
             res_dict['sel_per_cls'].append(perClsSel)
 
+            #if SCMI_WITHSOFT do a softsubsetted training before AL training
+            if(strategy=="SCMI_WITHSOFT"):
+                print('Softsubsetting for SCMI functions  using WASSAL_P')
+                # Extract images and targets from weighted_lake_set
+                images = [lake_set[i][0] for i in range(len(lake_set))]
+                targets=torch.tensor(sel_cls_idx[0])
+                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
+                private_targets=torch.tensor(0)
+                private_targets=private_targets.repeat(len(lake_set)//len(sel_cls_idx))
+                sofftsimplex_query=soft_simplex_query.detach().cpu().numpy()
+                sofftsimplex_private=soft_simplex_private.detach().cpu().numpy()
+                 #choose the top simplex_query that contributes 30% to the total simplex_query
+                _,top_n_indices=top_elements_contribute_to_percentage(sofftsimplex_query, ss_max_budget)
+                _,top_n_private_indices=top_elements_contribute_to_percentage(sofftsimplex_private, ss_max_budget)
+                small_images = [images[i] for i in top_n_indices]
+                small_targets = targets[top_n_indices.copy()]
+                small_simplex_query = sofftsimplex_query[top_n_indices]
+                small_private_targets = private_targets[top_n_private_indices.copy()]
+                small_simplex_private = sofftsimplex_private[top_n_private_indices]
+                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query,small_private_targets,small_simplex_private)
+
+
+                #load weighted_lakset into a weighted dataloader
+                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
+                                                shuffle=False, pin_memory=True)
+                
+                #start training
+                print("starting weighted training for {} with hypothesized labels:"+str(sel_cls_idx),strategy)
+                start_time = time.time()
+                num_ep=1
+                while(full_trn_acc[i]<0.99 and num_ep<100):
+                    model.train()
+                    for batch_idx, (inputs, targets,simplex_query,private_targets,simplex_private) in enumerate(weighted_lakeloader):
+                        # Variables in Pytorch are differentiable.
+                        inputs = inputs.to(device)
+                        targets = targets.to(device)
+                        private_targets = private_targets.to(device)
+                        simplex_query=simplex_query.to(device)
+                        simplex_private=simplex_private.to(device)
+                        # This will zero out the gradients for this batch.
+                        optimizer.zero_grad()
+                        outputs = model(inputs)
+                        target_loss_per_sample=criterion(outputs, targets)
+                        private_loss_per_sample=criterion(outputs, private_targets)
+                        loss = (simplex_query*target_loss_per_sample).sum()+(simplex_private*private_loss_per_sample).sum()
+                        loss.backward()
+                        optimizer.step()
+
+
+                    full_trn_loss = 0
+                    full_trn_correct = 0
+                    full_trn_total = 0
+                    model.eval()
+                    with torch.no_grad():
+                        for batch_idx, (inputs, targets,simplex_query,private_targets,simplex_private) in enumerate(weighted_lakeloader):
+                            # Variables in Pytorch are differentiable.
+                            inputs = inputs.to(device)
+                            targets = targets.to(device)
+                            private_targets = private_targets.to(device)
+                            simplex_query=simplex_query.to(device)
+                            simplex_private=simplex_private.to(device)
+                            # This will zero out the gradients for this batch.
+                            optimizer.zero_grad()
+                            outputs = model(inputs)
+                            target_loss_per_sample=criterion(outputs, targets)
+                            private_loss_per_sample=criterion(outputs, private_targets)
+                            loss = (simplex_query*target_loss_per_sample).sum()+(simplex_private*private_loss_per_sample).sum()
+                            full_trn_loss += loss.item()
+                            _, predicted = outputs.max(1)
+                            full_trn_total += targets.size(0)
+                            full_trn_correct += predicted.eq(targets).sum().item()
+                        full_trn_acc[i] = full_trn_correct / full_trn_total
+                        print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
+                        num_ep+=1
+                    timing[i] = time.time() - start_time
+
+            if(strategy=="SMI_WITHSOFT" or strategy=="AL_WITHSOFT"):
+                print('Softsubsetting for SMI or any other AL_SOFT functions using WASSAL')
+                # Extract images and targets from weighted_lake_set
+                images = [lake_set[i][0] for i in range(len(lake_set))]
+                targets=torch.tensor(sel_cls_idx[0])
+                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
+                sofftsimplex_query=soft_simplex_query.detach().cpu().numpy()
+                    #choose the top simplex_query that contributes 30% to the total simplex_query
+                _,top_n_indices=top_elements_contribute_to_percentage(sofftsimplex_query, ss_max_budget)
+                small_images = [images[i] for i in top_n_indices]
+                small_targets = targets[top_n_indices.copy()]
+                small_simplex_query = sofftsimplex_query[top_n_indices]
+                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query,None,None)
+                
+                #load weighted_lakset into a weighted dataloader
+                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
+                                                shuffle=False, pin_memory=True)
+                
+                #start training
+                print("starting weighted training for {} with hypothesized labels:"+str(sel_cls_idx),strategy)
+                start_time = time.time()
+                num_ep=1
+                while(full_trn_acc[i]<0.99 and num_ep<100):
+                    model.train()
+                    for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
+                        # Variables in Pytorch are differentiable.
+                        inputs = inputs.to(device)
+                        targets = targets.to(device)
+                        
+                        simplex_query=simplex_query.to(device)
+                        # This will zero out the gradients for this batch.
+                        optimizer.zero_grad()
+                        outputs = model(inputs)
+                        target_loss_per_sample=criterion(outputs, targets)
+                        loss = (simplex_query*target_loss_per_sample).sum()
+                        loss.backward()
+                        optimizer.step()
+                    full_trn_loss = 0
+                    full_trn_correct = 0
+                    full_trn_total = 0
+                    model.eval()
+                    with torch.no_grad():
+                        for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
+                            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
+                            outputs = model(inputs)
+                            loss = criterion(outputs, targets)
+                            full_trn_loss += loss.item()
+                            _, predicted = outputs.max(1)
+                            full_trn_total += targets.size(0)
+                            full_trn_correct += predicted.eq(targets).sum().item()
+                        full_trn_acc[i] = full_trn_correct / full_trn_total
+                        print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
+                        num_ep+=1
+                    timing[i] = time.time() - start_time
+
+            
+
+
             #if WASSAL do a softsubsetted training before AL training
             if(strategy=="WASSAL"):
             #label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
-                softSubbudget= 10
+                
                 # Extract images and targets from weighted_lake_set
                 images = [lake_set[i][0] for i in range(len(lake_set))]
                 targets=torch.tensor(sel_cls_idx[0])
@@ -592,7 +815,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 simplex_query=simplex_query.detach().cpu().numpy()
                 #choose the top simplex_query that contributes 30% to the total simplex_query
 
-                _,top_n_indices=top_elements_contribute_to_percentage(simplex_query, 50)
+                _,top_n_indices=top_elements_contribute_to_percentage(simplex_query, ss_max_budget)
                 
                 # # Get the indices that would sort the array in descending order
                 # sorted_indices = simplex_query.argsort()[::-1]
@@ -660,8 +883,9 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 
                 #just take the top 10 based on sorted simplex_query
                 simplex_query=simplex_query.detach().cpu().numpy()
-                _,top_n_indices=top_elements_contribute_to_percentage(simplex_query, 50)
+                _,top_n_indices=top_elements_contribute_to_percentage(simplex_query, ss_max_budget)
                 simplex_private=simplex_private.detach().cpu().numpy()
+                _,top_n_private_indices=top_elements_contribute_to_percentage(simplex_private, ss_max_budget)
                 # # Get the indices that would sort the array in descending order
                 # sorted_indices = simplex_query.argsort()[::-1]
                 # # Extract the top n indices
@@ -670,10 +894,10 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 # Reorder images and targets based on these indices
                 small_images = [images[i] for i in top_n_indices]
                 small_targets = targets[top_n_indices.copy()]
-                small_private_targets = private_targets[top_n_indices.copy()]
+                small_private_targets = private_targets[top_n_private_indices.copy()]
                 # Update simplex_query to only contain top n values
                 small_simplex_query = simplex_query[top_n_indices]
-                small_simplex_private = simplex_private[top_n_indices]
+                small_simplex_private = simplex_private[top_n_private_indices]
 
                 weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query,small_private_targets,small_simplex_private)
 
@@ -856,68 +1080,30 @@ budgets=[5,10,15,20,25]
 device_id = 0
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
-embedding_type = "features" #Type of the representation to use (gradients/features)
-model_name = 'ResNet18' #Model to use for training
-initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
- # Model Creation
-model = create_model(model_name, num_cls, device, embedding_type)
-#List of strategies
-strategies = [
-    
-    
-    ("WASSAL", "WASSAL"),
-    ("WASSAL_P", "WASSAL_P"),
-    ("SIM", 'fl1mi'),
-    ("SIM", 'fl2mi'),
-    ("SIM", 'gcmi'),
-    ("SIM", 'logdetmi'),
-    ('SCMI', 'flcmi'),
-    ('SCMI', 'logdetcmi'),
-    ("random", 'random'),
-    
-]
-
-for i,experiment in enumerate(experiments):
-    seed=seeds[i]
-    torch.manual_seed(seed)
-    np.random.seed(seed)
-    run=experiment
-    
-    # Loop for each budget from 50 to 400 in intervals of 50
-    for b in budgets:
-        # Loop through each strategy
-        for strategy, method in strategies:
-            print("Budget ",b," Strategy ",strategy," Method ",method)
-            run_targeted_selection(data_name, 
-                                    datadir, 
-                                    feature, 
-                                    model_name, 
-                                    b,             # updated budget
-                                    split_cfg, 
-                                    learning_rate, 
-                                    run, 
-                                    device, 
-                                    computeClassErrorLog,
-                                    strategy, 
-                                    method)
-
-
-# embedding_type = "gradients" #Type of the representation to use (gradients/features)
+# embedding_type = "features" #Type of the representation to use (gradients/features)
 # model_name = 'ResNet18' #Model to use for training
 # initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
 #  # Model Creation
 # model = create_model(model_name, num_cls, device, embedding_type)
+# #List of strategies
 # strategies = [
     
     
-#     ("AL", "badge"),
-#     ("AL", 'us'),
-#     ("AL", "glister"),
-#     ("AL", 'gradmatch-tss'),
-#     ("AL", 'coreset'),
-#     ("AL", 'leastconf'),
-#     ("AL", 'margin'),
-    
+#     ("WASSAL", "WASSAL"),
+#     ("WASSAL_P", "WASSAL_P"),
+#     ("SIM", 'fl1mi'),
+#     ("SIM", 'fl2mi'),
+#     ("SIM", 'gcmi'),
+#     ("SIM", 'logdetmi'),
+#     ('SCMI', 'flcmi'),
+#     ('SCMI', 'logdetcmi'),
+#     ("SIM_WITHSOFT", 'fl1mi_soft'),
+#     ("SIM_WITHSOFT", 'fl2mi_soft'),
+#     ("SIM_WITHSOFT", 'gcmi_soft'),
+#     ("SIM_WITHSOFT", 'logdetmi_soft'),
+#     ('SCMI_WITHSOFT', 'flcmi_soft'),
+#     ('SCMI_WITHSOFT', 'logdetcmi_soft'),
+#     ("random", 'random'),
     
 # ]
 
@@ -926,7 +1112,7 @@ for i,experiment in enumerate(experiments):
 #     torch.manual_seed(seed)
 #     np.random.seed(seed)
 #     run=experiment
-
+    
 #     # Loop for each budget from 50 to 400 in intervals of 50
 #     for b in budgets:
 #         # Loop through each strategy
@@ -944,3 +1130,58 @@ for i,experiment in enumerate(experiments):
 #                                     computeClassErrorLog,
 #                                     strategy, 
 #                                     method)
+
+
+embedding_type = "gradients" #Type of the representation to use (gradients/features)
+model_name = 'ResNet18' #Model to use for training
+initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+ # Model Creation
+model = create_model(model_name, num_cls, device, embedding_type)
+strategies = [
+    
+     #al soft
+    #("AL_WITHSOFT", "badge"),
+    ("AL_WITHSOFT", 'us_soft'),
+    ("AL_WITHSOFT", "glister_soft"),
+    ("AL_WITHSOFT", 'gradmatch-tss_soft'),
+    ("AL_WITHSOFT", 'coreset_soft'),
+    ("AL_WITHSOFT", 'leastconf_soft'),
+    ("AL_WITHSOFT", 'margin_soft'),
+    ("random", 'random'),
+
+    ("AL", "badge"),
+    ("AL", 'us'),
+    ("AL", "glister"),
+    ("AL", 'gradmatch-tss'),
+    ("AL", 'coreset'),
+    ("AL", 'leastconf'),
+    ("AL", 'margin'),
+   
+    
+    
+    
+]
+
+for i,experiment in enumerate(experiments):
+    seed=seeds[i]
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    run=experiment
+
+    # Loop for each budget from 50 to 400 in intervals of 50
+    for b in budgets:
+        # Loop through each strategy
+        for strategy, method in strategies:
+            print("Budget ",b," Strategy ",strategy," Method ",method)
+            run_targeted_selection(data_name, 
+                                    datadir, 
+                                    feature, 
+                                    model_name, 
+                                    b,             # updated budget
+                                    split_cfg, 
+                                    learning_rate, 
+                                    run, 
+                                    device, 
+                                    computeClassErrorLog,
+                                    strategy, 
+                                    method,embedding_type)
