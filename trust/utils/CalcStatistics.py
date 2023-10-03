@@ -12,9 +12,9 @@ rounds=2
 
 #for pneumonia
 base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
-budgets=['5', '10', '15', '20', '25']
-#budgets=['5','10']
-filename = "output_statistics_pneumo_classimbs"
+#budgets=['5', '10', '15', '20', '25']
+budgets=['5','10','15','20','25']
+filename = "output_statistics_pneumo_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
 #strategy_group="allstrategies"
