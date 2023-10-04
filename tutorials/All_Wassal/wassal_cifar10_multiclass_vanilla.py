@@ -327,14 +327,15 @@ miscls = False #Set to True if only the misclassified examples from the imbalanc
 num_cls = 10
 #budget = 10
 visualize_tsne = False
-split_cfg = {"train_size":100, #Number of rare classes
-             "val_size":200, #Number of samples per rare class in the train dataset
-             "lake_size":5000, #Number of samples per rare class in the validation dataset
-             
-            #  "per_class_train":1000,  #Number of samples per unrare class in the train dataset
-            #  "per_class_val":5, #Number of samples per unrare class in the validation dataset
-            #  "per_class_lake":3000
-             } #Number of samples per unrare class in the unlabeled dataset
+split_cfg = {
+    'train_size': 100,
+    'val_size': 200,
+    'lake_size': 5000,
+    'sel_cls_idx': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    'per_class_train': [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000],  # List of sizes for each class
+    'per_class_val': [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], 
+    'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000] 
+} #Number of samples per unrare class in the unlabeled dataset
 
 print("split_cfg:",split_cfg)
 

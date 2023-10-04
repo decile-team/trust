@@ -87,7 +87,9 @@ def create_model(name, num_cls, device, embedding_type):
         if embedding_type == "gradients":
             model = ResNet18(num_cls)
         else:
-            model = models.resnet18()
+            model = ResNet18(num_cls)
+            # model = models.resnet18()
+            # model.fc = nn.Linear(512, num_cls)
     elif name == 'ResNet50':
         if embedding_type == "gradients":
             model = ResNet50(num_cls)
@@ -380,9 +382,9 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     # Budget for subset selection
     bud = budget
     #soft subset max budget % of the lake set
-    ss_max_budget = 20
+    ss_max_budget = 5
     # Variables to store accuracies
-    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=6 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -558,6 +560,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
             strategy_sel.update_data(train_set, unlabeled_lake_set)
             strategy_sel.update_model(model)
+            
             #compute the error log before every selection
             if(computeErrorLog):
                 tst_err_log, val_err_log, val_class_err_idxs = find_err_per_class(test_set, val_set, final_val_classifications, final_val_predictions, final_tst_classifications, final_tst_predictions, all_logs_dir, sf+"_"+str(bud))
@@ -603,6 +606,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                     strategy_sel.update_queries(for_query_set)
                     print('size of query set',len(for_query_set))
                 else:
+                    strategy_softsubset.update_data(train_set, unlabeled_lake_set)
                     for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                     strategy_softsubset.update_queries(for_query_set)
                     
@@ -775,7 +779,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 weighted_lake_set = WeightedDataset(all_small_images, all_small_targets, all_small_simplex_query, None, None)
 
                 # Load into a dataloader
-                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True)
+                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=len(weighted_lake_set), shuffle=True, pin_memory=True)
 
                 
                 
@@ -1158,20 +1162,24 @@ strategies = [
      #al soft
     #("AL_WITHSOFT", "badge"),
     ("AL_WITHSOFT", 'us_soft'),
-    ("AL_WITHSOFT", "glister_soft"),
+    ("AL", 'us'),
+    #("AL_WITHSOFT", "glister_soft"),
     #("AL_WITHSOFT", 'gradmatch-tss_soft'),
     ("AL_WITHSOFT", 'coreset_soft'),
+    ("AL", 'coreset'),
     ("AL_WITHSOFT", 'leastconf_soft'),
+    ("AL", 'leastconf'),
     ("AL_WITHSOFT", 'margin_soft'),
+    ("AL", 'margin'),
     ("random", 'random'),
 
     #("AL", "badge"),
     ("AL", 'us'),
-    ("AL", "glister"),
+    #("AL", "glister"),
     #("AL", 'gradmatch-tss'),
-    ("AL", 'coreset'),
-    ("AL", 'leastconf'),
-    ("AL", 'margin'),
+    
+    
+    
    
     
     

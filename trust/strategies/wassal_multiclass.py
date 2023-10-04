@@ -122,6 +122,7 @@ class WASSAL_Multiclass(Strategy):
         self.num_classes = len(torch.unique(torch.stack([item[1] for item in self.query_dataset])))
         self.classwise_simplex_query = [torch.ones(unlabeled_dataset_len, requires_grad=True, device=self.device)/unlabeled_dataset_len for _ in range(self.num_classes)]
         self.classwise_indices = [[] for _ in range(self.num_classes)]
+        print("self.classwise_indices",self.classwise_indices)
         for idx, (_, label) in enumerate(self.query_dataset):
             self.classwise_indices[label].append(idx)
         
