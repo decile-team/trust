@@ -164,7 +164,17 @@ def create_longtail(dset_name, fullset, split_cfg, num_cls, augVal):
     val_set = SubsetWithTargets(fullset, val_idx, torch.Tensor(fullset.targets)[val_idx])
     lake_set = SubsetWithTargets(fullset, lake_idx, torch.Tensor(fullset.targets)[lake_idx])
     return train_set, val_set, lake_set, selected_classes
+
+def swap_labels(dataset):
+    """
+    Swap the labels of a binary classification dataset.
+    For instance, if a label is 0, change it to 1 and vice versa.
+    """
+    # Assuming dataset.targets is a numpy ndarray
+    dataset.targets = (1 - dataset.targets).astype(dataset.targets.dtype)
     
+    return dataset
+
 def load_biodataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, dataAug=True):
     """
     Loads a biomedical dataset with additional options to create class imbalances, out-of-distribution classes, and redundancies.
@@ -253,6 +263,8 @@ def load_biodataset_custom(datadir, dset_name, feature, split_cfg, augVal=False,
         Dataclass = name_to_class[dset_name][0]
         fullset = Dataclass(root=datadir,split="train",transform=data_transforms['train'],download=True)
         test_set = Dataclass(root=datadir,split="test",transform=data_transforms['test'],download=True)
+        fullset = swap_labels(fullset)
+        test_set = swap_labels(test_set)
         
         if(feature=="classimb"):
             train_set, val_set, lake_set, imb_cls_idx = create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal)

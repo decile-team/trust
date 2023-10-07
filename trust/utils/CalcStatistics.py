@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 
 #budgets=['5']
 #filename = "output_statistics_cifar_classimb_withAL_"
-rounds=2
+rounds=6
 
 #for pneumonia
 base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
-budgets=['5','10','15','20','25']
+budgets=['25','50','75']
 filename = "output_statistics_pneumo_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
@@ -24,11 +24,12 @@ filename = "output_statistics_pneumo_vanilla"
 #strategy_group="withprivate"
 #strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi","fl1mi_soft", "fl2mi_soft", "gcmi_soft", "logdetmi_soft", "random","WASSAL_P","logdetcmi","flcmi","logdetcmi_soft","flcmi_soft"]
 #strategy_group="WASSAL_SOFT"
-strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_soft","us_soft","glister_soft","coreset_soft","glister_soft","gradmatch-tss_soft","leastconf_soft","margin_soft"]
+#strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_soft","us_soft","glister_soft","coreset_soft","glister_soft","gradmatch-tss_soft","leastconf_soft","margin_soft"]
+strategies = ["random","us","coreset","leastconf","margin","us_soft","coreset_soft","leastconf_soft","margin_soft"]
 strategy_group="AL_WITH_SOFT"
 
-experiments=['exp1','exp2','exp3','exp4','exp5']
-#experiments=['exp1']
+#experiments=['exp1','exp2','exp3','exp4','exp5']
+experiments=['exp1']
 
 # Prepare the CSV file for saving stats
 output_path = os.path.join(base_dir, filename+"_group_"+strategy_group+"_rounds_"+str(rounds))
@@ -79,7 +80,7 @@ with open(output_path+".csv", "w", newline='') as csvfile:
                     #for i in range(0,5):
                     #gains=
                     y1 = df.iloc[0, 1]
-                    y2 = df.iloc[1, 1]
+                    y2 = df.iloc[rounds-1, 1]
                     gain = y2 - y1
                     gains.append(gain)
                 if not gains:
@@ -199,7 +200,7 @@ with open(output_path+"_allclasses.csv", "w", newline='') as csvfile:
                     #for i in range(0,5):
                     #gains=
                     y1 = df.iloc[0, 2]
-                    y2 = df.iloc[1, 2]
+                    y2 = df.iloc[rounds-1, 2]
                     gain = y2 - y1
                     gains.append(gain)
                 if not gains:
@@ -286,7 +287,7 @@ with open(output_path+"_majorityclass.csv", "w", newline='') as csvfile:
                     #for i in range(0,5):
                     #gains=
                     y1 = df.iloc[0, 0]
-                    y2 = df.iloc[1, 0]
+                    y2 = df.iloc[rounds-1, 0]
                     gain = y2 - y1
                     gains.append(gain)
                 if not gains:

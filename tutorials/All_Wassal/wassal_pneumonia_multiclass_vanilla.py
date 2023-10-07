@@ -187,7 +187,7 @@ def aug_train_subset(train_set, lake_set, true_lake_set, subset, lake_subset_idx
         remain_true_lake_set = SubsetWithTargets(true_lake_set, remain_lake_idx, torch.Tensor(true_lake_set.targets.float())[remain_lake_idx])
 #     print(len(lake_ss),len(remain_lake_set),len(lake_set))
     aug_train_set = ConcatWithTargets(train_set, lake_ss)
-    aug_trainloader = torch.utils.data.DataLoader(train_set, batch_size=10, shuffle=True, pin_memory=True)
+    aug_trainloader = torch.utils.data.DataLoader(train_set, batch_size=1000, shuffle=True, pin_memory=True)
     return aug_train_set, remain_lake_set, remain_true_lake_set, lake_ss
                         
 def getQuerySet(val_set,imb_cls_idx):
@@ -353,11 +353,15 @@ print("split_cfg:",split_cfg)
 # 7. Train a model on the combined labeled set $E \cup L(\hat{A})$
 
 # %%
+
+
 def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, split_cfg, learning_rate, run,
                 device, computeErrorLog, strategy="SIM", sf="",embedding_type="features"):
 
     #load the dataset in the class imbalance setting
     train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_biodataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
+    
+
     print("Indices of randomly selected classes for imbalance: ", sel_cls_idx)
     
    #Set batch size for train, validation and test datasets
@@ -382,7 +386,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     # Budget for subset selection
     bud = budget
     #soft subset max budget % of the lake set
-    ss_max_budget = 5
+    ss_max_budget = 60
     # Variables to store accuracies
     num_rounds=6 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
@@ -798,8 +802,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         # This will zero out the gradients for this batch.
                         optimizer.zero_grad()
                         outputs = model(inputs)
-                        target_loss_per_sample=criterion(outputs, targets)
-                        loss = (simplex_query*target_loss_per_sample).sum()
+                        target_loss_per_sample=criterion_nored(outputs, targets)
+                        loss = (2*simplex_query*target_loss_per_sample).sum()
                         loss.backward()
                         optimizer.step()
                     full_trn_loss = 0
@@ -808,10 +812,11 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                     model.eval()
                     with torch.no_grad():
                         for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
-                            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
+                            inputs, targets,simplex_query = inputs.to(device), targets.to(device, non_blocking=True), simplex_query.to(device)
                             outputs = model(inputs)
-                            loss = criterion(outputs, targets)
-                            full_trn_loss += loss.item()
+                            target_val_loss_per_sample = criterion_nored(outputs, targets)
+                            val_loss = (2*simplex_query * target_val_loss_per_sample).sum()
+                            full_trn_loss += val_loss.item()
                             _, predicted = outputs.max(1)
                             full_trn_total += targets.size(0)
                             full_trn_correct += predicted.eq(targets).sum().item()
@@ -1096,7 +1101,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 # %%
 experiments=['exp1','exp2','exp3','exp4','exp5']
 seeds=[42,43,44,45,46]
-budgets=[5,10,15,20,25]
+budgets=[25,50,75,100]
 device_id = 0
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 

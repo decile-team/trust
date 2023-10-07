@@ -87,7 +87,7 @@ def create_model(name, num_cls, device, embedding_type):
         if embedding_type == "gradients":
             model = ResNet18(num_cls)
         else:
-            model = models.resnet18()
+            model = ResNet18(num_cls)
     elif name == 'ResNet50':
         if embedding_type == "gradients":
             model = ResNet50(num_cls)
@@ -320,7 +320,7 @@ data_name = 'cifar10'
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 0
+device_id = 1
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -332,8 +332,8 @@ split_cfg = {
     'val_size': 200,
     'lake_size': 5000,
     'sel_cls_idx': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    'per_class_train': [1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000, 1000],  # List of sizes for each class
-    'per_class_val': [5, 5, 5, 5, 5, 5, 5, 5, 5, 5], 
+    'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
+    'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100], 
     'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000] 
 } #Number of samples per unrare class in the unlabeled dataset
 
@@ -417,7 +417,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
    
   
-    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':learning_rate}
+    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':learning_rate,'iterations':3}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
     if(strategy == "AL"):
@@ -437,6 +437,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     #if AL_WITHSOFT
     elif(strategy == "AL_WITHSOFT"):
+        strategy_args['lr']=0.1
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         #
         strategy_softsubset = WASSAL_Multiclass(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
@@ -1147,31 +1148,31 @@ device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 #                                     method)
 
 
-embedding_type = "gradients" #Type of the representation to use (gradients/features)
+embedding_type = "features" #Type of the representation to use (gradients/features)
 model_name = 'ResNet18' #Model to use for training
 initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
  # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
     
-     #al soft
+      #al soft
     #("AL_WITHSOFT", "badge"),
     ("AL_WITHSOFT", 'us_soft'),
-    ("AL_WITHSOFT", "glister_soft"),
-    ("AL_WITHSOFT", 'gradmatch-tss_soft'),
+    ("AL", 'us'),
+    #("AL_WITHSOFT", "glister_soft"),
+    #("AL_WITHSOFT", 'gradmatch-tss_soft'),
     ("AL_WITHSOFT", 'coreset_soft'),
+    ("AL", 'coreset'),
     ("AL_WITHSOFT", 'leastconf_soft'),
+    ("AL", 'leastconf'),
     ("AL_WITHSOFT", 'margin_soft'),
+    ("AL", 'margin'),
     ("random", 'random'),
 
-    ("AL", "badge"),
+    #("AL", "badge"),
     ("AL", 'us'),
-    ("AL", "glister"),
-    ("AL", 'gradmatch-tss'),
-    ("AL", 'coreset'),
-    ("AL", 'leastconf'),
-    ("AL", 'margin'),
-   
+    #("AL", "glister"),
+    #("AL", 'gradmatch-tss'),
     
     
     

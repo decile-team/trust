@@ -8,6 +8,8 @@ from torch.utils.data import DataLoader, Dataset
 import random
 import math
 from torchvision.models import resnet50, resnet18,resnet101
+import matplotlib.pyplot as plt
+import numpy as np
 
 class customSampler(torch.utils.data.Sampler):
     def __init__(self, ind):
@@ -83,6 +85,20 @@ class WASSAL_Multiclass(Strategy):
     def get_query_simplex(self):
         return self.simplex_query
     
+    def _compute_features(self, dataset, embedding_type, layer_name=None, gradType=None,isLabeled=False):
+        """Helper method to compute features for a dataset."""
+        dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
+        if(isLabeled):
+            images, _ = next(iter(dataloader))
+        else:
+            images = next(iter(dataloader))
+        if embedding_type == "features":
+            return self.get_feature_embedding(images, True, layer_name).view(len(dataset), -1)
+        elif embedding_type == "gradients":
+            return self.get_grad_embedding(images, False, gradType).view(len(dataset), -1)
+        else:
+            raise ValueError("Unknown embedding type.")
+    
     def select(self, budget):
         # venkat sir's code
         """
@@ -104,6 +120,7 @@ class WASSAL_Multiclass(Strategy):
         embedding_type = self.args['embedding_type'] if 'embedding_type' in self.args else "features"
         if(embedding_type=="features"):
             layer_name = self.args['layer_name'] if 'layer_name' in self.args else "avgpool"
+        gradType=None
         if(embedding_type=="gradients"):
             gradType = self.args['gradType'] if 'gradType' in self.args else "bias_linear"
         loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.8)
@@ -120,101 +137,164 @@ class WASSAL_Multiclass(Strategy):
         if(self.args['verbose']):
             print('There are',unlabeled_dataset_len,'Unlabeled dataset')
         self.num_classes = len(torch.unique(torch.stack([item[1] for item in self.query_dataset])))
-        self.classwise_simplex_query = [torch.ones(unlabeled_dataset_len, requires_grad=True, device=self.device)/unlabeled_dataset_len for _ in range(self.num_classes)]
-        self.classwise_indices = [[] for _ in range(self.num_classes)]
-        print("self.classwise_indices",self.classwise_indices)
-        for idx, (_, label) in enumerate(self.query_dataset):
-            self.classwise_indices[label].append(idx)
+        self.classwise_simplex_query = []
+        self.classwise_simplex_refrain = []
+        for _ in range(self.num_classes):
+            tensor = torch.ones(unlabeled_dataset_len, device=self.device)
+            tensor = (tensor / unlabeled_dataset_len).clone().detach().requires_grad_(True)
+            self.classwise_simplex_query.append(tensor)
+        
+        for _ in range(self.num_classes):
+            tensor = torch.ones(unlabeled_dataset_len, device=self.device)
+            tensor = (tensor / unlabeled_dataset_len).clone().detach().requires_grad_(True)
+            self.classwise_simplex_refrain.append(tensor)
+
+
+
+        self.label_to_simplex_query = {}
+        unique_labels = torch.unique(torch.stack([item[1] for item in self.query_dataset]))
+        
+        for i, label in enumerate(unique_labels):
+            self.label_to_simplex_query[label.item()] = self.classwise_simplex_query[i]
+            
+
+         # Hyperparameters for sinkhorn iterations
+         #if self.args has lr, use that else use 0.001
+        lr = self.args['lr'] if 'lr' in self.args else 0.001
+        
+        
+        step_size = 25
+           
+        optimizer = torch.optim.Adam(self.classwise_simplex_query+self.classwise_simplex_refrain, lr=lr)
+        #optimizer = torch.optim.SGD(self.classwise_simplex_query+self.classwise_simplex_refrain, lr=lr)
+
+        scheduler_query = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.1)
+        
+        # 1. Precompute features for query_dataset
+        query_dataset_features = self._compute_features(self.query_dataset, embedding_type, layer_name, gradType,True)
+        query_dataset_len = len(self.query_dataset)
+    
+        # 2. Precompute features for unlabeled_dataset
+        unlabeled_dataset_features = self._compute_features(self.unlabeled_dataset, embedding_type, layer_name, gradType,False)
+        unlabeled_dataset_len = len(self.unlabeled_dataset)
         
         #multiclass selection
-        classwise_final_indices = []
-        for class_idx in range(self.num_classes):
-            class_indices = self.classwise_indices[class_idx]
-            for i in range(100):
-                simplex_query = self.classwise_simplex_query[class_idx].detach()
-                #uniform distribution of weights
-                beta = torch.ones(query_dataset_len, requires_grad=False)/query_dataset_len
-                unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
-                query_dataloader = DataLoader(dataset=self.query_dataset, batch_size=len(self.query_dataset), shuffle=False)
+        #if self.args has iterations, use that else use 100
+        iterations = self.args['iterations'] if 'iterations' in self.args else 100
+        for i in range(iterations):
+            # Create lists to store the loss values           
+           
 
-                query_iter=iter(query_dataloader)
+            # Initialize total loss as a tensor with requires_grad=True
+            loss = 0.0
+            optimizer.zero_grad()
+            #calculate loss classwise in query dataset
+            for class_idx in range(self.num_classes):
+                #filter query dataset based on class_idx
+                class_mask = (torch.stack([item[1] for item in self.query_dataset]) == unique_labels[class_idx]).to(self.device)
+                non_class_mask = (torch.stack([item[1] for item in self.query_dataset]) != unique_labels[class_idx]).to(self.device)
+                 # Replace the individual feature extraction calls
+                query_features = query_dataset_features[torch.nonzero(class_mask).squeeze()]
+                refrain_features = query_dataset_features[torch.nonzero(non_class_mask).squeeze()]
 
-                query_imgs, _= next(query_iter)
-        
-        
-                query_imgs=query_imgs.to(self.device)
-                beta = beta.to(self.device)
-                 # Hyperparameters for sinkhorn iterations
-                lr = 0.0001
-                step_size = 25
-                m=0.9
-                wd=5e-4
-                optimizer = torch.optim.Adam([simplex_query], lr=lr)
-        #optimizer = torch.optim.SGD([simplex_query], lr=lr,
-         #                 momentum=m, weight_decay=wd)
-         # Define the learning rate scheduler
-                scheduler_query = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.1)
+                #query_imgs=query_imgs.to(self.device)
+                beta = torch.ones(len(query_features), requires_grad=False)/len(query_features)
+                beta=beta.to(self.device)
+                gamma = torch.ones(len(refrain_features), requires_grad=False)/len(refrain_features)
+                gamma=gamma.to(self.device)
+                #get simplex_query for that class
+                simplex_query = self.classwise_simplex_query[class_idx]
                 simplex_query.requires_grad = True
-                # Create lists to store the loss values
-        
-                overall_loss=[]
-        
-                # Loop over the datasets 10 times
-            
-                simplex_query.grad = None  # Reset gradients at the beginning of each epoch
-                batch_idx = 0
-                # Initialize loss_avg as a tensor with requires_grad=True
-                loss_avg = torch.tensor(0.0, requires_grad=True)
+                #get simplex_refrain for that class
+                simplex_refrain = self.classwise_simplex_refrain[class_idx]
+                simplex_refrain.requires_grad = True
+                unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
+                loss_avg_query=0.0
+                loss_avg_refrain=0.0
+                loss_avg_query_refrain=0.0
+                #calc num_batches
+                num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
+                #batchiwise WD calculation
                 
-                optimizer.zero_grad()
-                #batchwise WD calculation
-                for unlabeled_imgs in unlabeled_dataloader:
+                for batch_idx,unlabeled_imgs in enumerate(unlabeled_dataloader):
+                        # Get the features using the pretrained model
+                    unlabeled_features = unlabeled_dataset_features[batch_idx * minibatch_size : (batch_idx + 1) * minibatch_size]
                     
-                    # Get the features using the pretrained model
-                    if(embedding_type == "features"):
-                        unlabeled_features = self.get_feature_embedding(unlabeled_imgs, True, layer_name)
-                        query_features = self.get_feature_embedding(query_imgs, True, layer_name)
-                    if(embedding_type == "gradients"):
-                        unlabeled_features = self.get_grad_embedding(self.unlabeled_dataset, True, gradType)
-                        query_features = self.get_grad_embedding(self.query_dataset, False, gradType)
-            
-                    unlabeled_features = unlabeled_features.view(unlabeled_features.shape[0], -1)
-                    query_features = query_features.view(query_features.shape[0], -1)    
-                    simplex_batch_query = simplex_query[batch_idx * unlabeled_dataloader.batch_size : (batch_idx + 1) * unlabeled_dataloader.batch_size]
+                   
+                    
+                    unlabeled_features=unlabeled_features.to(self.device)
+                    query_features=query_features.to(self.device)
+                    refrain_features=refrain_features.to(self.device)
+                    # Handle the last batch size
+                    current_batch_size = len(unlabeled_imgs)
+                    #simplex batch query
+                    simplex_batch_query = simplex_query[batch_idx * current_batch_size : (batch_idx + 1) * current_batch_size]
                     #should we average or project?
-                    simplex_batch_query = simplex_batch_query.clone() / simplex_batch_query.sum()
-
-                    weights_batch = simplex_query[batch_idx*minibatch_size:(batch_idx+1)*minibatch_size]
+                    if(simplex_batch_query.sum()!=0):
+                        simplex_batch_query = simplex_batch_query.clone() / simplex_batch_query.sum()
+                    #simplex_batch_query.requires_grad = True
                     simplex_batch_query=simplex_batch_query.to(self.device)
-                    #unlabeled_imgs=unlabeled_imgs.to(self.device)
-                    loss = loss_func(simplex_batch_query, unlabeled_features, beta, query_features)
-                    #loss = loss_func(simplex_batch_query, unlabeled_imgs.view(len(unlabeled_imgs), -1), beta, query_imgs.view(len(query_imgs), -1))
-                    overall_loss.append(loss.item())
+                    simplex_batch_refrain = simplex_refrain[batch_idx * current_batch_size : (batch_idx + 1) * current_batch_size]
+                    #should we average or project?
+                    if(simplex_batch_refrain.sum()!=0):
+                        simplex_batch_refrain = simplex_batch_refrain.clone() / simplex_batch_refrain.sum()
+                    #simplex_batch_refrain.requires_grad = True
+                    simplex_batch_refrain=simplex_batch_refrain.to(self.device)
+                    loss_avg_query=loss_avg_query+(loss_func(simplex_batch_query, unlabeled_features, beta, query_features) / num_batches)
                     
-                    loss_avg = loss_avg + loss / num_batches
+                    loss_avg_refrain=loss_avg_refrain+(loss_func(simplex_batch_refrain, unlabeled_features, gamma, refrain_features) / num_batches)
+                    loss_avg_query_refrain=loss_avg_query_refrain+(loss_func(simplex_batch_query, unlabeled_features, simplex_batch_refrain, unlabeled_features) / num_batches)
                     
-                    batch_idx += 1
-                    
-               
-                loss_avg.backward()
-                optimizer.step()
-                scheduler_query.step()
                 
-            
-                with torch.no_grad():
-                    simplex_query.data = self._proj_simplex(simplex_query.data)
-                print("Epoch:[", i,"],Avg loss: [{}]".format(loss_avg),end="\r")
-                if loss_avg.item() < 1:
-                    break
-            #store as an object variable    
-            self.classwise_simplex_query[class_idx] = simplex_query
+                #once all batches are done, calculate average loss
+                
+                total_loss=loss_avg_query+loss_avg_refrain-0.3*loss_avg_query_refrain
+                #add to the total loss
+                loss = loss + total_loss
 
-            sorted_simplex,indices=torch.sort(simplex_query,descending=True)
-            inter_indices = torch.Tensor.tolist(indices[:budget])
-            final_indices = [shuffled_indices[ind] for ind in inter_indices]
-            classwise_final_indices.append((final_indices, simplex_query, class_idx))
-            if(self.args['verbose']):
-                print('length of unlabelled dataset:',unlabeled_dataset_len)
-                print('Totals Probability of the budget:',str(torch.sum(sorted_simplex[:budget])))
+            #once one iteration is done for class, do backward and step
+            loss.backward()
+            optimizer.step()
+            scheduler_query.step()
+            #project to simplex
+                           
+            with torch.no_grad():
+                for class_idx in range(self.num_classes):
+                    self.classwise_simplex_query[class_idx].data = self._proj_simplex(self.classwise_simplex_query[class_idx].data)
+                    print("Epoch:[", i,"],Avg loss: [{}]".format(loss),end="\r")
+                    #break if loss is less than 1 or greater than -1
+                    
+
+
+            if((loss.item()<1 and loss.item()>-1) and i>10):
+                break
                 
-        return  classwise_final_indices
+        #once iterations are over or loss is less than 1, return the necessary indices
+        
+
+        # This list will store the desired tuples
+        output = []
+         # Plotting the distribution of the simplexes before returning the output
+        plt.figure(figsize=(15, 10))
+
+        # Iterate over the keys and values in the label_to_simplex_query dictionary
+        for class_idx, simplex_query in self.label_to_simplex_query.items():
+            
+            # Get values from simplex_query and plot them
+            simplex_values = simplex_query.cpu().detach().numpy()
+            plt.hist(simplex_values, bins=np.linspace(0, max(simplex_values), 50), alpha=0.5, label=f'Class {class_idx}')
+            
+            # Get indices sorted in descending order based on simplex_query values
+            sorted_indices = torch.argsort(simplex_query, descending=True).cpu().numpy().tolist()
+
+            # Each tuple contains the sorted indices, the simplex_query tensor, and the class_idx
+            output.append((sorted_indices, simplex_query, class_idx))
+        plt.title('Distribution of Simplexes for Each Class')
+        plt.xlabel('Simplex Value')
+        plt.ylabel('Count')
+        plt.legend(loc='upper right')
+        plt.grid(True)
+        plt.tight_layout()
+        plt.savefig('simplex_distribution.png')
+
+        return output
