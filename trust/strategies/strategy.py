@@ -305,11 +305,15 @@ class Strategy:
         if(unlabeled):
             for batch_idx, inputs in enumerate(dataloader):
                 inputs = inputs.to(self.device)
-                batch_features = self.feature_extraction(inputs, layer_name)
-                features.append(batch_features)
+                #
+                _,batch_features=self.net(inputs,last=True)
+                #batch_features = self.feature_extraction(inputs, layer_name)
+                features.append(batch_features.detach())
         else:
             for batch_idx, (inputs,_) in enumerate(dataloader):
                 inputs = inputs.to(self.device)
-                batch_features = self.feature_extraction(inputs, layer_name)
-                features.append(batch_features)
+                _,batch_features=self.net(inputs,last=True)
+                #batch_features = self.feature_extraction(inputs, layer_name)
+                
+                features.append(batch_features.detach())
         return torch.vstack(features)

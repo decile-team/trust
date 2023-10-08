@@ -10,3 +10,15 @@ output_statistics.csv
 ALcurve.png
 .gitignore
 trust/strategies/wassal_multiclass.py
+cifar10_simplex_distribution_class_0.png
+cifar10_simplex_distribution_class_1.png
+cifar10_simplex_distribution_class_2.png
+cifar10_simplex_distribution_class_3.png
+cifar10_simplex_distribution_class_4.png
+cifar10_simplex_distribution_class_5.png
+cifar10_simplex_distribution_class_6.png
+cifar10_simplex_distribution_class_7.png
+cifar10_simplex_distribution_class_8.png
+cifar10_simplex_distribution_class_9.png
+pneumo_simplex_distribution_class_0.png
+pneumo_simplex_distribution_class_1.png

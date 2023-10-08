@@ -275,9 +275,49 @@ class WeightedDataset(Dataset):
         p = self.simplex_private[idx].item() if self.simplex_private is not None else []
         
         return (image, target,t,private_target,p)
+def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
+    # Plot the distribution of the simplex query colorcoded based on the true labels
+    for (_, simplex_query, class_idx) in classwise_final_indices_simplex:
+        
+        # Determine histogram bin edges
+        counts, bin_edges = np.histogram(simplex_query, bins=10)
+        
+        # Create a color map for your targets
+        unique_targets = np.unique(lake_set.targets)
+        colors = plt.cm.jet(np.linspace(0, 1, len(unique_targets)))
+        color_map = {target: color for target, color in zip(unique_targets, colors)}
+        
+        # Prepare bin data to color based on target
+        bin_data = {target: [] for target in unique_targets}
+        
+        for i in range(len(bin_edges)-1):
+            bin_mask = (simplex_query >= bin_edges[i]) & (simplex_query < bin_edges[i+1])
+            bin_targets = np.array(lake_set.targets)[bin_mask]
+            for target in unique_targets:
+                count_target = np.sum(bin_targets == target)
+                # Add the count to the bin_data if it's less than or equal to 100
+                if count_target <= 100:
+                    bin_data[target].append(count_target)
+                else:
+                    bin_data[target].append(0)
+                
+        # Plot
+        plt.figure(figsize=(10, 5))
+        bottom = np.zeros(len(bin_edges)-1)
+        for target, counts in bin_data.items():
+            plt.bar(bin_edges[:-1], counts, width=np.diff(bin_edges), align='edge', label=str(target), bottom=bottom, color=color_map[target])
+            bottom += counts
+            
+        plt.title("Distribution of the simplex query for hypothesised Class: "+str(class_idx))
+        plt.xlabel("Query values")
+        plt.ylabel("Frequency")
+        plt.legend(title="Targets", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        plt.savefig('cifar10_simplex_distribution_class_{}.png'.format(class_idx))        
+
 
 #return the elements from the simplex_query that contribute to the given percentage
-def top_elements_contribute_to_percentage(simplex_query, n_percent):
+def top_elements_contribute_to_percentage(simplex_query, n_percent,budget):
    # Pair each value with its original index
     indexed_simplex = list(enumerate(simplex_query))
     
@@ -304,6 +344,11 @@ def top_elements_contribute_to_percentage(simplex_query, n_percent):
 
     # Return values and their original indices
     selected_values = [simplex_query[i] for i in selected_indices]
+    #if(len(selected_values)>budget) return only the top budget elements:
+    if(len(selected_values)>budget):
+        selected_values = selected_values[:budget]
+        selected_indices = selected_indices[:budget]
+
     return selected_values, selected_indices
 
 
@@ -327,14 +372,26 @@ miscls = False #Set to True if only the misclassified examples from the imbalanc
 num_cls = 10
 #budget = 10
 visualize_tsne = False
+#for real experiments
+# split_cfg = {
+#     'train_size': 100,
+#     'val_size': 200,
+#     'lake_size': 5000,
+#     'sel_cls_idx': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+#     'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
+#     'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100], 
+#     'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000] 
+# } #Number of samples per unrare class in the unlabeled dataset
+
+#for smaller experiements
 split_cfg = {
     'train_size': 100,
     'val_size': 200,
     'lake_size': 5000,
-    'sel_cls_idx': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
-    'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100], 
-    'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000] 
+    'sel_cls_idx': [0,1, 2, 3, 4, 5, 6, 7, 8, 9],
+    'per_class_train': [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],  # List of sizes for each class
+    'per_class_val': [ 100, 100, 100, 100, 100, 100, 100, 100, 100,100], 
+    'per_class_lake': [400, 400, 400, 400, 400, 400, 400, 400, 400, 400] 
 } #Number of samples per unrare class in the unlabeled dataset
 
 print("split_cfg:",split_cfg)
@@ -382,7 +439,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     #soft subset max budget % of the lake set
     ss_max_budget = 20
     # Variables to store accuracies
-    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=3 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -417,7 +474,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
    
   
-    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':learning_rate,'iterations':3}
+    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':0.01,'iterations':50,'step_size':10}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
     if(strategy == "AL"):
@@ -437,7 +494,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     #if AL_WITHSOFT
     elif(strategy == "AL_WITHSOFT"):
-        strategy_args['lr']=0.1
+        
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         #
         strategy_softsubset = WASSAL_Multiclass(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
@@ -558,6 +615,9 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
             strategy_sel.update_data(train_set, unlabeled_lake_set)
             strategy_sel.update_model(model)
+            if(strategy=="SIM_WITHSOFT" or strategy=="SCMI_WITHSOFT" or strategy=="AL_WITHSOFT"):
+                strategy_softsubset.update_data(train_set, unlabeled_lake_set)
+                strategy_softsubset.update_model(model)
             #compute the error log before every selection
             if(computeErrorLog):
                 tst_err_log, val_err_log, val_class_err_idxs = find_err_per_class(test_set, val_set, final_val_classifications, final_val_predictions, final_tst_classifications, final_tst_predictions, all_logs_dir, sf+"_"+str(bud))
@@ -654,6 +714,11 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 subset = strategy_sel.select(budget)
             elif(strategy=="SMI_WITHSOFT"or strategy=="AL_WITHSOFT"):
                 classwise_final_indices_simplex = strategy_softsubset.select(budget)
+                #clone the tensors to cpu for visualization
+                classwise_final_indices_simplex_cpu = [(indicex,tensor.clone().cpu().detach(),class_idx) for (indicex,tensor,class_idx) in classwise_final_indices_simplex]
+                plotsimpelxDistribution(lake_set,classwise_final_indices_simplex_cpu)
+                
+                
                 subset = strategy_sel.select(budget)
             else:
                 subset = strategy_sel.select(budget)
@@ -761,7 +826,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                     targets=targets.repeat(len(lake_set))
                     sofftsimplex_query=simplex_query.detach().cpu().numpy()
                     #choose the top simplex_query that contributes 30% to the total simplex_query
-                    _,top_n_indices=top_elements_contribute_to_percentage(sofftsimplex_query, ss_max_budget)
+                    _,top_n_indices=top_elements_contribute_to_percentage(sofftsimplex_query, ss_max_budget,2*budget)
                     # Collect the data
                     all_small_images.extend([images[i] for i in top_n_indices])
                     all_small_targets.extend(targets[top_n_indices.copy()].tolist())
@@ -780,7 +845,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 
                 
                 #start training
-                print("starting weighted training for {} with hypothesized labels:"+str(sel_cls_idx),strategy)
+                print("starting weighted training for "+strategy+" with hypothesized labels:")
                 start_time = time.time()
                 num_ep=1
                 while(full_trn_acc[i]<0.99 and num_ep<100):
@@ -794,7 +859,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         # This will zero out the gradients for this batch.
                         optimizer.zero_grad()
                         outputs = model(inputs)
-                        target_loss_per_sample=criterion(outputs, targets)
+                        target_loss_per_sample=criterion_nored(outputs, targets)
                         loss = (simplex_query*target_loss_per_sample).sum()
                         loss.backward()
                         optimizer.step()
@@ -806,13 +871,13 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
                             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
                             outputs = model(inputs)
-                            loss = criterion(outputs, targets)
-                            full_trn_loss += loss.item()
+                            loss = criterion_nored(outputs, targets)
+                            full_trn_loss += loss.sum().item()
                             _, predicted = outputs.max(1)
                             full_trn_total += targets.size(0)
                             full_trn_correct += predicted.eq(targets).sum().item()
                         full_trn_acc[i] = full_trn_correct / full_trn_total
-                        print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
+                        print("\nSelection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
                         num_ep+=1
                     timing[i] = time.time() - start_time
 
@@ -980,6 +1045,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             print("starting AL training")
             #augment the train_set with selected indices from the lake
             train_set, lake_set, true_lake_set, add_val_set = aug_train_subset(train_set, lake_set, true_lake_set, subset, lake_subset_idxs, budget, True) #aug train with random if budget is not filled
+                
             print("After augmentation, size of train_set: ", len(train_set), " unlabeled set: ", len(lake_set), " val set: ", len(val_set))
     
 #           Reinit train and lake loaders with new splits and reinit the model
@@ -1092,8 +1158,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 # %%
 experiments=['exp1','exp2','exp3','exp4','exp5']
 seeds=[42,43,44,45,46]
-budgets=[5,10,15,20,25]
-device_id = 0
+budgets=[100,200,300,400,500]
+device_id = 1
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)

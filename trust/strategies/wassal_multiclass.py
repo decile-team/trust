@@ -10,7 +10,7 @@ import math
 from torchvision.models import resnet50, resnet18,resnet101
 import matplotlib.pyplot as plt
 import numpy as np
-
+from tqdm import tqdm
 class customSampler(torch.utils.data.Sampler):
     def __init__(self, ind):
         self.ind = ind
@@ -131,7 +131,7 @@ class WASSAL_Multiclass(Strategy):
         sampler = customSampler(shuffled_indices)
 
         query_dataset_len = len(self.query_dataset)
-        minibatch_size = 4000
+        minibatch_size = self.args['minibatch_size'] if 'minibatch_size' in self.args else 4000
        
         num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
         if(self.args['verbose']):
@@ -163,7 +163,7 @@ class WASSAL_Multiclass(Strategy):
         lr = self.args['lr'] if 'lr' in self.args else 0.001
         
         
-        step_size = 25
+        step_size = self.args['step_size'] if 'step_size' in self.args else 10
            
         optimizer = torch.optim.Adam(self.classwise_simplex_query+self.classwise_simplex_refrain, lr=lr)
         #optimizer = torch.optim.SGD(self.classwise_simplex_query+self.classwise_simplex_refrain, lr=lr)
@@ -181,22 +181,48 @@ class WASSAL_Multiclass(Strategy):
         #multiclass selection
         #if self.args has iterations, use that else use 100
         iterations = self.args['iterations'] if 'iterations' in self.args else 100
+
+        #first get query and refrain params ready
+        
         for i in range(iterations):
             # Create lists to store the loss values           
            
-
+            #print('entering iterations')
             # Initialize total loss as a tensor with requires_grad=True
             loss = 0.0
+            total_loss=0.0
             optimizer.zero_grad()
             #calculate loss classwise in query dataset
+            
             for class_idx in range(self.num_classes):
+                #print('entering classwisecalculation')
                 #filter query dataset based on class_idx
                 class_mask = (torch.stack([item[1] for item in self.query_dataset]) == unique_labels[class_idx]).to(self.device)
-                non_class_mask = (torch.stack([item[1] for item in self.query_dataset]) != unique_labels[class_idx]).to(self.device)
-                 # Replace the individual feature extraction calls
+                #find length of query dataset for that class_idx
+                num_query_instances = len(query_dataset_features[torch.nonzero(class_mask).squeeze()])
+               
+                # For every non-class_idx, select equal instances
+                num_samples_per_class = num_query_instances // (self.num_classes - 1)
+                refrain_indices = []
+                for other_class_idx in unique_labels:
+                    
+                    if other_class_idx != class_idx:
+                        other_class_mask = (torch.stack([item[1] for item in self.query_dataset]) == other_class_idx).to(self.device)
+                        other_class_indices = torch.nonzero(other_class_mask).squeeze().tolist()
+                        if(len(other_class_indices)>num_samples_per_class):
+                            # Randomly sample indices without replacement
+                            selected_indices = random.sample(other_class_indices, num_samples_per_class)
+                            refrain_indices.extend(selected_indices)
+                        else:
+                            refrain_indices.extend(other_class_indices)
+                 #Extract refrain_features
                 query_features = query_dataset_features[torch.nonzero(class_mask).squeeze()]
-                refrain_features = query_dataset_features[torch.nonzero(non_class_mask).squeeze()]
-
+                query_features=query_features.detach()
+            
+                refrain_features = query_dataset_features[torch.tensor(refrain_indices).to(self.device)]
+                refrain_features=refrain_features.detach()
+                query_features=query_features.to(self.device)
+                refrain_features=refrain_features.to(self.device)
                 #query_imgs=query_imgs.to(self.device)
                 beta = torch.ones(len(query_features), requires_grad=False)/len(query_features)
                 beta=beta.to(self.device)
@@ -204,10 +230,10 @@ class WASSAL_Multiclass(Strategy):
                 gamma=gamma.to(self.device)
                 #get simplex_query for that class
                 simplex_query = self.classwise_simplex_query[class_idx]
-                simplex_query.requires_grad = True
+                #simplex_query.requires_grad = True
                 #get simplex_refrain for that class
                 simplex_refrain = self.classwise_simplex_refrain[class_idx]
-                simplex_refrain.requires_grad = True
+                
                 unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
                 loss_avg_query=0.0
                 loss_avg_refrain=0.0
@@ -215,39 +241,51 @@ class WASSAL_Multiclass(Strategy):
                 #calc num_batches
                 num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
                 #batchiwise WD calculation
-                
+            
                 for batch_idx,unlabeled_imgs in enumerate(unlabeled_dataloader):
-                        # Get the features using the pretrained model
-                    unlabeled_features = unlabeled_dataset_features[batch_idx * minibatch_size : (batch_idx + 1) * minibatch_size]
-                    
-                   
-                    
-                    unlabeled_features=unlabeled_features.to(self.device)
-                    query_features=query_features.to(self.device)
-                    refrain_features=refrain_features.to(self.device)
-                    # Handle the last batch size
+                    #print('entering batchwise')
+                    # Get the features using the pretrained model
+                
+                
+                # Handle the last batch size
                     current_batch_size = len(unlabeled_imgs)
-                    #simplex batch query
-                    simplex_batch_query = simplex_query[batch_idx * current_batch_size : (batch_idx + 1) * current_batch_size]
-                    #should we average or project?
+                #if the current batch size is less than minibatch size, then we need to adjust the simplex batch query and simplex batch refrain
+                    if(current_batch_size<minibatch_size):
+                        diff=minibatch_size-current_batch_size
+                    #for beginning index 0 add 1 to diff
+                        
+                        begindex=(batch_idx*minibatch_size)-diff
+                        endindex=((batch_idx+1)*minibatch_size)-diff
+                    else:
+                        begindex=batch_idx*minibatch_size
+                        endindex=(batch_idx+1)*minibatch_size
+                #simplex batch query
+                    simplex_batch_query = simplex_query[begindex : endindex]
+                #should we average or project?
                     if(simplex_batch_query.sum()!=0):
                         simplex_batch_query = simplex_batch_query.clone() / simplex_batch_query.sum()
                     #simplex_batch_query.requires_grad = True
                     simplex_batch_query=simplex_batch_query.to(self.device)
-                    simplex_batch_refrain = simplex_refrain[batch_idx * current_batch_size : (batch_idx + 1) * current_batch_size]
+                    simplex_batch_refrain = simplex_refrain[begindex : endindex]
                     #should we average or project?
                     if(simplex_batch_refrain.sum()!=0):
                         simplex_batch_refrain = simplex_batch_refrain.clone() / simplex_batch_refrain.sum()
                     #simplex_batch_refrain.requires_grad = True
                     simplex_batch_refrain=simplex_batch_refrain.to(self.device)
+                    #get minibatch unlabeled features
+                    unlabeled_features = unlabeled_dataset_features[begindex : endindex]
+                    
+                    
+                    
+                    unlabeled_features=unlabeled_features.to(self.device)
                     loss_avg_query=loss_avg_query+(loss_func(simplex_batch_query, unlabeled_features, beta, query_features) / num_batches)
                     
                     loss_avg_refrain=loss_avg_refrain+(loss_func(simplex_batch_refrain, unlabeled_features, gamma, refrain_features) / num_batches)
                     loss_avg_query_refrain=loss_avg_query_refrain+(loss_func(simplex_batch_query, unlabeled_features, simplex_batch_refrain, unlabeled_features) / num_batches)
                     
-                
-                #once all batches are done, calculate average loss
-                
+            
+            #once all batches are done, calculate average loss
+            
                 total_loss=loss_avg_query+loss_avg_refrain-0.3*loss_avg_query_refrain
                 #add to the total loss
                 loss = loss + total_loss
@@ -266,7 +304,7 @@ class WASSAL_Multiclass(Strategy):
                     
 
 
-            if((loss.item()<1 and loss.item()>-1) and i>10):
+            if((loss.item()<1 and loss.item()>-1) and i>50):
                 break
                 
         #once iterations are over or loss is less than 1, return the necessary indices
@@ -275,26 +313,27 @@ class WASSAL_Multiclass(Strategy):
         # This list will store the desired tuples
         output = []
          # Plotting the distribution of the simplexes before returning the output
-        plt.figure(figsize=(15, 10))
+        #plt.figure(figsize=(15, 10))
 
         # Iterate over the keys and values in the label_to_simplex_query dictionary
         for class_idx, simplex_query in self.label_to_simplex_query.items():
             
             # Get values from simplex_query and plot them
             simplex_values = simplex_query.cpu().detach().numpy()
-            plt.hist(simplex_values, bins=np.linspace(0, max(simplex_values), 50), alpha=0.5, label=f'Class {class_idx}')
+            #plt.hist(simplex_values, bins=np.linspace(0, max(simplex_values), 50), alpha=0.5, label=f'Class {class_idx}')
             
             # Get indices sorted in descending order based on simplex_query values
             sorted_indices = torch.argsort(simplex_query, descending=True).cpu().numpy().tolist()
 
             # Each tuple contains the sorted indices, the simplex_query tensor, and the class_idx
             output.append((sorted_indices, simplex_query, class_idx))
-        plt.title('Distribution of Simplexes for Each Class')
-        plt.xlabel('Simplex Value')
-        plt.ylabel('Count')
-        plt.legend(loc='upper right')
-        plt.grid(True)
-        plt.tight_layout()
-        plt.savefig('simplex_distribution.png')
+        # plt.title('Distribution of Simplexes for Each Class')
+        # plt.xlabel('Simplex Value')
+        # plt.ylabel('Count')
+        # plt.legend(loc='upper right')
+        # plt.grid(True)
+        # plt.tight_layout()
+        # plt.savefig('simplex_distribution.png')
+        print('returning values')
 
         return output
