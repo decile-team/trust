@@ -306,14 +306,14 @@ class Strategy:
             for batch_idx, inputs in enumerate(dataloader):
                 inputs = inputs.to(self.device)
                 #
-                _,batch_features=self.net(inputs,last=True)
-                #batch_features = self.feature_extraction(inputs, layer_name)
+                #_,batch_features=self.net(inputs,last=True)
+                batch_features = self.feature_extraction(inputs, layer_name)
                 features.append(batch_features.detach())
         else:
             for batch_idx, (inputs,_) in enumerate(dataloader):
                 inputs = inputs.to(self.device)
-                _,batch_features=self.net(inputs,last=True)
-                #batch_features = self.feature_extraction(inputs, layer_name)
+                #_,batch_features=self.net(inputs,last=True)
+                batch_features = self.feature_extraction(inputs, layer_name)
                 
                 features.append(batch_features.detach())
         return torch.vstack(features)

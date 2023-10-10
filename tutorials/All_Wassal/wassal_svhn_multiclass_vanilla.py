@@ -1,5 +1,3 @@
-
-
 # %% [markdown]
 # # Targeted Selection Demo For Biomedical Datasets With Rare Classes
 
@@ -31,7 +29,7 @@ sys.path.append('/home/wassal/trust-wassal/')
 
 from trust.utils.models.resnet import ResNet18
 from trust.utils.models.resnet import ResNet50
-from trust.utils.custom_dataset_medmnist import load_biodataset_custom
+from trust.utils.custom_dataset import load_dataset_custom
 from torch.utils.data import Subset
 from torch.autograd import Variable
 import tqdm
@@ -40,7 +38,7 @@ from sklearn.metrics.pairwise import cosine_similarity, pairwise_distances
 from trust.strategies.smi import SMI
 from trust.strategies.scmi import SCMI
 from trust.strategies.random_sampling import RandomSampling
-from trust.strategies.wassal import WASSAL
+from trust.strategies.wassal_multiclass import WASSAL_Multiclass
 from trust.strategies.wassal_private import WASSAL_P
 
 sys.path.append('/home/wassal/distil')
@@ -89,7 +87,7 @@ def create_model(name, num_cls, device, embedding_type):
         if embedding_type == "gradients":
             model = ResNet18(num_cls)
         else:
-            model = models.resnet18()
+            model = ResNet18(num_cls)
     elif name == 'ResNet50':
         if embedding_type == "gradients":
             model = ResNet50(num_cls)
@@ -230,9 +228,9 @@ def getPerClassSel(lake_set, subset, num_cls):
 
 def print_final_results(res_dict, sel_cls_idx):
     print("Gain in overall test accuracy: ", res_dict['test_acc'][1]-res_dict['test_acc'][0])
-    bf_sel_cls_acc = np.array(res_dict['all_class_acc'][0])[sel_cls_idx]
-    af_sel_cls_acc = np.array(res_dict['all_class_acc'][1])[sel_cls_idx]
-    print("Gain in targeted test accuracy: ", np.mean(af_sel_cls_acc-bf_sel_cls_acc))
+    #bf_sel_cls_acc = np.array(res_dict['all_class_acc'][0])[sel_cls_idx]
+    #af_sel_cls_acc = np.array(res_dict['all_class_acc'][1])[sel_cls_idx]
+    #print("Gain in targeted test accuracy: ", np.mean(af_sel_cls_acc-bf_sel_cls_acc))
 
 def analyze_simplex(args, unlabeled_set, simplex_query):
     print("======== analysis on simplex =========")
@@ -277,9 +275,49 @@ class WeightedDataset(Dataset):
         p = self.simplex_private[idx].item() if self.simplex_private is not None else []
         
         return (image, target,t,private_target,p)
+def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
+    # Plot the distribution of the simplex query colorcoded based on the true labels
+    for (_, simplex_query, class_idx) in classwise_final_indices_simplex:
+        
+        # Determine histogram bin edges
+        counts, bin_edges = np.histogram(simplex_query, bins=10)
+        
+        # Create a color map for your targets
+        unique_targets = np.unique(lake_set.targets)
+        colors = plt.cm.jet(np.linspace(0, 1, len(unique_targets)))
+        color_map = {target: color for target, color in zip(unique_targets, colors)}
+        
+        # Prepare bin data to color based on target
+        bin_data = {target: [] for target in unique_targets}
+        
+        for i in range(len(bin_edges)-1):
+            bin_mask = (simplex_query >= bin_edges[i]) & (simplex_query < bin_edges[i+1])
+            bin_targets = np.array(lake_set.targets)[bin_mask]
+            for target in unique_targets:
+                count_target = np.sum(bin_targets == target)
+                # Add the count to the bin_data if it's less than or equal to 100
+                if count_target <= 100:
+                    bin_data[target].append(count_target)
+                else:
+                    bin_data[target].append(0)
+                
+        # Plot
+        plt.figure(figsize=(10, 5))
+        bottom = np.zeros(len(bin_edges)-1)
+        for target, counts in bin_data.items():
+            plt.bar(bin_edges[:-1], counts, width=np.diff(bin_edges), align='edge', label=str(target), bottom=bottom, color=color_map[target])
+            bottom += counts
+            
+        plt.title("Distribution of the simplex query for hypothesised Class: "+str(class_idx))
+        plt.xlabel("Query values")
+        plt.ylabel("Frequency")
+        plt.legend(title="Targets", bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.tight_layout()
+        plt.savefig('cifar10_simplex_distribution_class_{}.png'.format(class_idx))        
+
 
 #return the elements from the simplex_query that contribute to the given percentage
-def top_elements_contribute_to_percentage(simplex_query, n_percent):
+def top_elements_contribute_to_percentage(simplex_query, n_percent,budget):
    # Pair each value with its original index
     indexed_simplex = list(enumerate(simplex_query))
     
@@ -306,6 +344,11 @@ def top_elements_contribute_to_percentage(simplex_query, n_percent):
 
     # Return values and their original indices
     selected_values = [simplex_query[i] for i in selected_indices]
+    #if(len(selected_values)>budget) return only the top budget elements:
+    # if(len(selected_values)>budget):
+    #     selected_values = selected_values[:budget]
+    #     selected_indices = selected_indices[:budget]
+
     return selected_values, selected_indices
 
 
@@ -317,28 +360,41 @@ def top_elements_contribute_to_percentage(simplex_query, n_percent):
 feature = "classimb"
 
 # datadir = 'data/'
-datadir = '/data/medmnist' #contains the npz file of the data_name dataset listed below
-data_name = 'pneumoniamnist'
+datadir = '/data/svhn' #contains the npz file of the data_name dataset listed below
+data_name = 'svhn'
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 0
+device_id = 1
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False #Set to True if only the misclassified examples from the imbalanced classes is to be used
 
-num_cls = 2
+num_cls = 10
 #budget = 10
 visualize_tsne = False
+#for real experiments
+# split_cfg = {
+#     'train_size': 100,
+#     'val_size': 200,
+#     'lake_size': 5000,
+#     'sel_cls_idx': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+#     'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
+#     'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100], 
+#     'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000] 
+# } #Number of samples per unrare class in the unlabeled dataset
+
+#for smaller experiements
 split_cfg = {
-             "per_class_train":{0:100,1:5}, 
-             "per_class_val":{0:20,1:20}, 
-             "per_class_lake":{0:1050,1:53},
-             "per_class_test":{0:200,1:200},
-             "sel_cls_idx":[1], 
-             "per_imbclass_train":{0:100,1:5}, 
-             "per_imbclass_val":{0:20,1:20}, 
-             "per_imbclass_lake":{0:1050,1:53},
-             "per_imbclass_test":{0:200,1:200}}
+    'num_cls_imbalance':[0,1,2,3,4,5,6,7,8,9],
+    'sel_cls_idx': [0,1, 2, 3, 4, 5, 6, 7, 8, 9],
+    'per_class_train': [20, 20, 20, 20, 20, 20, 20, 20, 20, 20],  # List of sizes for each class
+    'per_class_val': [10, 10, 10, 10, 10, 10, 10, 10, 10, 10], 
+    'per_class_lake': [400, 400, 400, 400, 400, 400, 400, 400, 400, 400] ,
+    'per_imbclass_train': [20, 20, 20, 20, 20, 20, 20, 20, 20, 20],  # List of sizes for each class
+    'per_imbclass_val': [10, 10, 10, 10, 10, 10, 10, 10, 10, 10], 
+    'per_imbclass_lake': [400, 400, 400, 400, 400, 400, 400, 400, 400, 400] 
+} #Number of samples per unrare class in the unlabeled dataset
+
 print("split_cfg:",split_cfg)
 
 # %% [markdown]
@@ -357,7 +413,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 device, computeErrorLog, strategy="SIM", sf="",embedding_type="features"):
 
     #load the dataset in the class imbalance setting
-    train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_biodataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
+    train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_dataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
     print("Indices of randomly selected classes for imbalance: ", sel_cls_idx)
     
    #Set batch size for train, validation and test datasets
@@ -384,7 +440,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     #soft subset max budget % of the lake set
     ss_max_budget = 20
     # Variables to store accuracies
-    num_rounds=2 #The first round is for training the initial model and the second round is to train the final model
+    num_rounds=3 #The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -419,7 +475,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
    
   
-    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':learning_rate}
+    strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':0.01,'iterations':50,'step_size':10,'min_iteration':40}
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
     
     if(strategy == "AL"):
@@ -438,10 +494,11 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
         elif(sf=="margin"):
             strategy_sel = MarginSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
     #if AL_WITHSOFT
-    elif(strategy == "AL_WITHSOFT"):
+    elif(strategy == "AL_WITHSOFT" or strategy == "WASSAL_SOFT"):
+        
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         #
-        strategy_softsubset = WASSAL(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
+        strategy_softsubset = WASSAL_Multiclass(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
             
         if(sf[:-5]=="badge"):
            
@@ -492,9 +549,9 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
     
     elif(strategy == "random"):
         strategy_sel = RandomSampling(train_set, unlabeled_lake_set, model, num_cls, strategy_args)
-    if(strategy == "WASSAL"):
+    if(strategy == "WASSAL" or strategy == "WASSAL_SOFT"):
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
-        strategy_sel = WASSAL(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
+        strategy_sel = WASSAL_Multiclass(train_set, unlabeled_lake_set,for_query_set, model,num_cls,strategy_args)
     elif(strategy == "WASSAL_P"):
         for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
         for_private_set = getPrivateSet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
@@ -559,6 +616,9 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
             strategy_sel.update_data(train_set, unlabeled_lake_set)
             strategy_sel.update_model(model)
+            if(strategy=="SIM_WITHSOFT" or strategy=="SCMI_WITHSOFT" or strategy=="AL_WITHSOFT"):
+                strategy_softsubset.update_data(train_set, unlabeled_lake_set)
+                strategy_softsubset.update_model(model)
             #compute the error log before every selection
             if(computeErrorLog):
                 tst_err_log, val_err_log, val_class_err_idxs = find_err_per_class(test_set, val_set, final_val_classifications, final_val_predictions, final_tst_classifications, final_tst_predictions, all_logs_dir, sf+"_"+str(bud))
@@ -597,7 +657,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         
                         print('size of query set',len(for_query_set))
             #if AL_WITHSOFT
-            elif(strategy=="AL_WITHSOFT"):
+            elif(strategy=="AL_WITHSOFT" or strategy=="WASSAL_SOFT"):
                 if(sf=="glister-tss" or sf=="gradmatch-tss"):
                     for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                     strategy_softsubset.update_queries(for_query_set)
@@ -615,7 +675,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                     strategy_sel.update_queries(miscls_set)
                     print("reinit AL with targeted miscls samples")
                 
-            elif(strategy=="WASSAL"):
+            elif(strategy=="WASSAL" or strategy=="WASSAL_SOFT"):
                 #concatina the train and val sets
                 for_query_set = getQuerySet(ConcatWithTargets(train_set,val_set),sel_cls_idx)
                 strategy_sel.update_queries(for_query_set)
@@ -638,11 +698,12 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                 print('size of query set',len(for_query_set))
 
             
-            if(strategy=="WASSAL"):
-                subset,simplex_query = strategy_sel.select(budget)
-                temp_args={}
-                temp_args['device'] = device
-                temp_args['target'] = sel_cls_idx
+            if(strategy=="WASSAL" or strategy=="WASSAL_SOFT"):
+                classwise_final_indices_simplex = strategy_sel.select(budget)
+                subset=[]
+                for (selected_indices, simplex_query,class_idx) in classwise_final_indices_simplex:
+                    subset+=selected_indices
+
                 #analyze_simplex(temp_args,lake_set,simplex_query)
             elif(strategy=="WASSAL_P"):
                 subset,simplex_query,simplex_private = strategy_sel.select(budget)
@@ -653,8 +714,13 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             elif(strategy=="SCMI_WITHSOFT"):
                 softsubset,soft_simplex_query,soft_simplex_private = strategy_softsubset.select(budget)
                 subset = strategy_sel.select(budget)
-            elif(strategy=="SMI_WITHSOFT"or strategy=="AL_WITHSOFT"):
-                softsubset,soft_simplex_query = strategy_softsubset.select(budget)
+            elif(strategy=="SMI_WITHSOFT"or strategy=="AL_WITHSOFT" or strategy=="WASSAL_SOFT"):
+                classwise_final_indices_simplex = strategy_softsubset.select(budget)
+                #clone the tensors to cpu for visualization
+                classwise_final_indices_simplex_cpu = [(indicex,tensor.clone().cpu().detach(),class_idx) for (indicex,tensor,class_idx) in classwise_final_indices_simplex]
+                plotsimpelxDistribution(lake_set,classwise_final_indices_simplex_cpu)
+                
+                
                 subset = strategy_sel.select(budget)
             else:
                 subset = strategy_sel.select(budget)
@@ -747,26 +813,41 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         num_ep+=1
                     timing[i] = time.time() - start_time
 
-            if(strategy=="SMI_WITHSOFT" or strategy=="AL_WITHSOFT"):
-                print('Softsubsetting for SMI or any other AL_SOFT functions using WASSAL')
-                # Extract images and targets from weighted_lake_set
-                images = [lake_set[i][0] for i in range(len(lake_set))]
-                targets=torch.tensor(sel_cls_idx[0])
-                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
-                sofftsimplex_query=soft_simplex_query.detach().cpu().numpy()
-                    #choose the top simplex_query that contributes 30% to the total simplex_query
-                _,top_n_indices=top_elements_contribute_to_percentage(sofftsimplex_query, ss_max_budget)
-                small_images = [images[i] for i in top_n_indices]
-                small_targets = targets[top_n_indices.copy()]
-                small_simplex_query = sofftsimplex_query[top_n_indices]
-                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query,None,None)
+            if((strategy=="SMI_WITHSOFT" or strategy=="AL_WITHSOFT" or strategy=="WASSAL_SOFT") and i>0):
+                print('Softsubsetting  for strategy: '+strategy)
+                # Aggregation lists
+                all_small_images = []
+                all_small_targets = []
+                all_small_simplex_query = []
                 
-                #load weighted_lakset into a weighted dataloader
-                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
-                                                shuffle=False, pin_memory=True)
+                for (sel_cls_idx, simplex_query, class_idx) in classwise_final_indices_simplex:
+
+                    # Extract images and targets from weighted_lake_set
+                    images = [lake_set[i][0] for i in range(len(lake_set))]
+                    targets=torch.tensor([class_idx])
+                    targets=targets.repeat(len(lake_set))
+                    sofftsimplex_query=simplex_query.detach().cpu().numpy()
+                    #choose the top simplex_query that contributes 30% to the total simplex_query
+                    _,top_n_indices=top_elements_contribute_to_percentage(sofftsimplex_query, ss_max_budget,2*budget)
+                    # Collect the data
+                    all_small_images.extend([images[i] for i in top_n_indices])
+                    all_small_targets.extend(targets[top_n_indices.copy()].tolist())
+                    all_small_simplex_query.extend(sofftsimplex_query[top_n_indices].tolist())
+
+                # Convert lists to tensors
+                all_small_targets = torch.tensor(all_small_targets)
+                all_small_simplex_query = torch.tensor(all_small_simplex_query)
+
+                # Form the combined weighted dataset
+                weighted_lake_set = WeightedDataset(all_small_images, all_small_targets, all_small_simplex_query, None, None)
+
+                # Load into a dataloader
+                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True)
+
+                
                 
                 #start training
-                print("starting weighted training for {} with hypothesized labels:"+str(sel_cls_idx),strategy)
+                print("starting weighted training for "+strategy+" with hypothesized labels:")
                 start_time = time.time()
                 num_ep=1
                 while(full_trn_acc[i]<0.99 and num_ep<100):
@@ -780,7 +861,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         # This will zero out the gradients for this batch.
                         optimizer.zero_grad()
                         outputs = model(inputs)
-                        target_loss_per_sample=criterion(outputs, targets)
+                        target_loss_per_sample=criterion_nored(outputs, targets)
                         loss = (simplex_query*target_loss_per_sample).sum()
                         loss.backward()
                         optimizer.step()
@@ -792,86 +873,20 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
                         for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
                             inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
                             outputs = model(inputs)
-                            loss = criterion(outputs, targets)
-                            full_trn_loss += loss.item()
+                            loss = criterion_nored(outputs, targets)
+                            full_trn_loss += loss.sum().item()
                             _, predicted = outputs.max(1)
                             full_trn_total += targets.size(0)
                             full_trn_correct += predicted.eq(targets).sum().item()
                         full_trn_acc[i] = full_trn_correct / full_trn_total
-                        print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
+                        print("\nSelection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
                         num_ep+=1
                     timing[i] = time.time() - start_time
 
             
 
 
-            #if WASSAL do a softsubsetted training before AL training
-            if(strategy=="WASSAL"):
-            #label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
-                
-                # Extract images and targets from weighted_lake_set
-                images = [lake_set[i][0] for i in range(len(lake_set))]
-                targets=torch.tensor(sel_cls_idx[0])
-                targets=targets.repeat(len(lake_set)//len(sel_cls_idx))
-                #just take the top 10 based on sorted simplex_query
-                simplex_query=simplex_query.detach().cpu().numpy()
-                #choose the top simplex_query that contributes 30% to the total simplex_query
-
-                _,top_n_indices=top_elements_contribute_to_percentage(simplex_query, ss_max_budget)
-                
-                # # Get the indices that would sort the array in descending order
-                # sorted_indices = simplex_query.argsort()[::-1]
-                # # Extract the top n indices
-                # #top_n_indices = sorted_indices[budget+1:n*2]
-                # top_n_indices = sorted_indices[:softSubbudget]
-                # # Reorder images and targets based on these indices
-                small_images = [images[i] for i in top_n_indices]
-                small_targets = targets[top_n_indices.copy()]
-                # Update simplex_query to only contain top n values
-                small_simplex_query = simplex_query[top_n_indices]
-
-                weighted_lake_set = WeightedDataset(small_images,small_targets, small_simplex_query,None,None)
-
-                #load weighted_lakset into a weighted dataloader
-                weighted_lakeloader = torch.utils.data.DataLoader(weighted_lake_set, batch_size=trn_batch_size,
-                                                shuffle=False, pin_memory=True)
-                
-                #start training
-                print("starting weighted training for WASSAL with hypothesized labels:"+str(sel_cls_idx))
-                start_time = time.time()
-                num_ep=1
-                while(full_trn_acc[i]<0.99 and num_ep<100):
-                    model.train()
-                    for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
-                        # Variables in Pytorch are differentiable.
-                        inputs = inputs.to(device)
-                        targets = targets.to(device)
-                        
-                        simplex_query=simplex_query.to(device)
-                        # This will zero out the gradients for this batch.
-                        optimizer.zero_grad()
-                        outputs = model(inputs)
-                        target_loss_per_sample=criterion(outputs, targets)
-                        loss = (simplex_query*target_loss_per_sample).sum()
-                        loss.backward()
-                        optimizer.step()
-                    full_trn_loss = 0
-                    full_trn_correct = 0
-                    full_trn_total = 0
-                    model.eval()
-                    with torch.no_grad():
-                        for batch_idx, (inputs, targets,simplex_query,_,_) in enumerate(weighted_lakeloader):
-                            inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
-                            outputs = model(inputs)
-                            loss = criterion(outputs, targets)
-                            full_trn_loss += loss.item()
-                            _, predicted = outputs.max(1)
-                            full_trn_total += targets.size(0)
-                            full_trn_correct += predicted.eq(targets).sum().item()
-                        full_trn_acc[i] = full_trn_correct / full_trn_total
-                        print("Selection Epoch ", i, " Training epoch [" , num_ep, "]" , " Training Acc: ", full_trn_acc[i], end="\r")
-                        num_ep+=1
-                    timing[i] = time.time() - start_time
+            
             #if WASSAL_P   do a softsubsetted training with query and private before AL training
             elif(strategy=="WASSAL_P"):
             #label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
@@ -966,6 +981,7 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
             print("starting AL training")
             #augment the train_set with selected indices from the lake
             train_set, lake_set, true_lake_set, add_val_set = aug_train_subset(train_set, lake_set, true_lake_set, subset, lake_subset_idxs, budget, True) #aug train with random if budget is not filled
+                
             print("After augmentation, size of train_set: ", len(train_set), " unlabeled set: ", len(lake_set), " val set: ", len(val_set))
     
 #           Reinit train and lake loaders with new splits and reinit the model
@@ -1078,8 +1094,8 @@ def run_targeted_selection(dataset_name, datadir, feature, model_name, budget, s
 # %%
 experiments=['exp1','exp2','exp3','exp4','exp5']
 seeds=[42,43,44,45,46]
-budgets=[5,10,15,20,25]
-device_id = 0
+budgets=[20,200,300,400,500]
+device_id = 1
 device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
@@ -1134,31 +1150,32 @@ device = "cuda:"+str(device_id) if torch.cuda.is_available() else "cpu"
 #                                     method)
 
 
-embedding_type = "gradients" #Type of the representation to use (gradients/features)
+embedding_type = "features" #Type of the representation to use (gradients/features)
 model_name = 'ResNet18' #Model to use for training
 initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
  # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
     
-     #al soft
-    #("AL_WITHSOFT", "badge"),
+      #al soft
+    ("WASSAL", "WASSAL"),
+    ("WASSAL_SOFT", "WASSAL_SOFT"),
     ("AL_WITHSOFT", 'us_soft'),
-    ("AL_WITHSOFT", "glister_soft"),
-    ("AL_WITHSOFT", 'gradmatch-tss_soft'),
+    ("AL", 'us'),
+    #("AL_WITHSOFT", "glister_soft"),
+    #("AL_WITHSOFT", 'gradmatch-tss_soft'),
     ("AL_WITHSOFT", 'coreset_soft'),
+    ("AL", 'coreset'),
     ("AL_WITHSOFT", 'leastconf_soft'),
+    ("AL", 'leastconf'),
     ("AL_WITHSOFT", 'margin_soft'),
+    ("AL", 'margin'),
     ("random", 'random'),
 
-    ("AL", "badge"),
+    #("AL", "badge"),
     ("AL", 'us'),
-    ("AL", "glister"),
-    ("AL", 'gradmatch-tss'),
-    ("AL", 'coreset'),
-    ("AL", 'leastconf'),
-    ("AL", 'margin'),
-   
+    #("AL", "glister"),
+    #("AL", 'gradmatch-tss'),
     
     
     

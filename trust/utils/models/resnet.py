@@ -98,7 +98,7 @@ class ResNet(nn.Module):
                 out = self.layer4(out)
                 out = self.avgpool(out)
                 e = out.view(out.size(0), -1)
-                e = F.normalize(e, p=2, dim=1)  # L2 normalization along the feature dimension
+                #e = F.normalize(e, p=2, dim=1)  # L2 normalization along the feature dimension
         else:
             out = F.relu(self.bn1(self.conv1(x)))
             out = self.layer1(out)
@@ -107,7 +107,7 @@ class ResNet(nn.Module):
             out = self.layer4(out)
             out = self.avgpool(out)
             e = out.view(out.size(0), -1)
-            e = F.normalize(e, p=2, dim=1)  # L2 normalization along the feature dimension
+            #e = F.normalize(e, p=2, dim=1)  # L2 normalization along the feature dimension
 
     
         out = self.linear(e)

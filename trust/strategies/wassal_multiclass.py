@@ -48,8 +48,8 @@ class WASSAL_Multiclass(Strategy):
     
     def __init__(self, labeled_dataset, unlabeled_dataset, query_dataset,net, nclasses, args={}): #
         #pretrained resnet18 as 
-        #self.net = resnet50(pretrained=True)
-        self.net=net
+        self.net = resnet50(pretrained=True)
+        #self.net=net
         #merge labeled and query dataset into query and non-query classes and finetune the resnet50
         
         
@@ -161,7 +161,7 @@ class WASSAL_Multiclass(Strategy):
          # Hyperparameters for sinkhorn iterations
          #if self.args has lr, use that else use 0.001
         lr = self.args['lr'] if 'lr' in self.args else 0.001
-        
+        min_iteration=self.args['min_iteration'] if 'min_iteration' in self.args else 50
         
         step_size = self.args['step_size'] if 'step_size' in self.args else 10
            
@@ -207,7 +207,7 @@ class WASSAL_Multiclass(Strategy):
                 for other_class_idx in unique_labels:
                     
                     if other_class_idx != class_idx:
-                        other_class_mask = (torch.stack([item[1] for item in self.query_dataset]) == other_class_idx).to(self.device)
+                        other_class_mask = (torch.stack([item[1] for item in self.query_dataset]) == unique_labels[other_class_idx]).to(self.device)
                         other_class_indices = torch.nonzero(other_class_mask).squeeze().tolist()
                         if(len(other_class_indices)>num_samples_per_class):
                             # Randomly sample indices without replacement
@@ -299,12 +299,13 @@ class WASSAL_Multiclass(Strategy):
             with torch.no_grad():
                 for class_idx in range(self.num_classes):
                     self.classwise_simplex_query[class_idx].data = self._proj_simplex(self.classwise_simplex_query[class_idx].data)
+                    self.classwise_simplex_refrain[class_idx].data = self._proj_simplex(self.classwise_simplex_refrain[class_idx].data)
                     print("Epoch:[", i,"],Avg loss: [{}]".format(loss),end="\r")
                     #break if loss is less than 1 or greater than -1
                     
 
 
-            if((loss.item()<1 and loss.item()>-1) and i>50):
+            if((loss.item()<0.2 and loss.item()>-0.2) and i>min_iteration):
                 break
                 
         #once iterations are over or loss is less than 1, return the necessary indices
@@ -314,19 +315,35 @@ class WASSAL_Multiclass(Strategy):
         output = []
          # Plotting the distribution of the simplexes before returning the output
         #plt.figure(figsize=(15, 10))
-
+        classwisebudget=budget//self.num_classes
         # Iterate over the keys and values in the label_to_simplex_query dictionary
+        selected_indices_set = set()
         for class_idx, simplex_query in self.label_to_simplex_query.items():
             
             # Get values from simplex_query and plot them
-            simplex_values = simplex_query.cpu().detach().numpy()
             #plt.hist(simplex_values, bins=np.linspace(0, max(simplex_values), 50), alpha=0.5, label=f'Class {class_idx}')
             
             # Get indices sorted in descending order based on simplex_query values
-            sorted_indices = torch.argsort(simplex_query, descending=True).cpu().numpy().tolist()
+            sorted_indices = torch.argsort(simplex_query).cpu().numpy().tolist()
+            # Filter out indices that have already been selected
+            sorted_indices = [idx for idx in sorted_indices if idx not in selected_indices_set]
 
+            simplex_refrain = self.classwise_simplex_refrain[class_idx]
+            # Mask out the values in simplex_query and simplex_refrain tensors
+            # corresponding to selected indices
+            masked_simplex_query = simplex_query.clone()
+            masked_simplex_refrain = simplex_refrain.clone()
+            
+            for idx in sorted_indices[:classwisebudget]:
+                masked_simplex_query[idx] = 0
+                masked_simplex_refrain[idx] = 0
+            # Get the top indices based on classwisebudget after filtering
+            selected_for_current_class = set(sorted_indices[:classwisebudget])
             # Each tuple contains the sorted indices, the simplex_query tensor, and the class_idx
-            output.append((sorted_indices, simplex_query, class_idx))
+            output.append((sorted_indices[:classwisebudget], masked_simplex_query.detach().cpu(), masked_simplex_refrain.detach().cpu(), class_idx))
+            # Update the set with the indices selected for the current class
+            selected_indices_set.update(selected_for_current_class)
+        
         # plt.title('Distribution of Simplexes for Each Class')
         # plt.xlabel('Simplex Value')
         # plt.ylabel('Count')
@@ -334,6 +351,6 @@ class WASSAL_Multiclass(Strategy):
         # plt.grid(True)
         # plt.tight_layout()
         # plt.savefig('simplex_distribution.png')
-        print('returning values')
+        
 
         return output

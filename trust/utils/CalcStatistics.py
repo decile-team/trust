@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 
 #budgets=['5']
 #filename = "output_statistics_cifar_classimb_withAL_"
-rounds=6
+rounds=10
 
 #for pneumonia
 base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
-budgets=['25','50']
+budgets=[24,50]
 filename = "output_statistics_pneumo_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
@@ -25,7 +25,7 @@ filename = "output_statistics_pneumo_vanilla"
 #strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi","fl1mi_soft", "fl2mi_soft", "gcmi_soft", "logdetmi_soft", "random","WASSAL_P","logdetcmi","flcmi","logdetcmi_soft","flcmi_soft"]
 #strategy_group="WASSAL_SOFT"
 #strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_soft","us_soft","glister_soft","coreset_soft","glister_soft","gradmatch-tss_soft","leastconf_soft","margin_soft"]
-strategies = ["random","us","coreset","leastconf","margin","us_soft","coreset_soft","leastconf_soft","margin_soft"]
+strategies = ['us','us_soft','coreset','coreset_soft','leastconf','leastconf_soft','margin','margin_soft','random']
 strategy_group="AL_WITH_SOFT"
 
 #experiments=['exp1','exp2','exp3','exp4','exp5']
@@ -154,8 +154,8 @@ for strategy, values in data.items():
     #plt.errorbar(values['budgets'], values['means'],values['sds'], label=strategy)
 
 plt.xlabel('Budget')
-plt.ylabel('Mean Gain for rare class')
-plt.title('Mean Gain for rare class for '+str(rounds)+'AL rounds')
+plt.ylabel('Mean Gain for class 1')
+plt.title('Mean Gain for class 1 for '+str(rounds)+'AL rounds')
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.tight_layout()
@@ -329,8 +329,8 @@ for strategy, values in data.items():
     #plt.errorbar(values['budgets'], values['means'],values['sds'], label=strategy)
 
 plt.xlabel('Budget')
-plt.ylabel('Mean Gain for majority class')
-plt.title('Mean Gain for majority class for '+str(rounds)+'AL rounds')
+plt.ylabel('Mean Gain for class 0')
+plt.title('Mean Gain for class 0 for '+str(rounds)+'AL rounds')
 plt.legend()
 plt.grid(True, which='both', linestyle='--', linewidth=0.5)
 plt.tight_layout()
