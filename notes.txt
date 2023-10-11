@@ -1,0 +1,7 @@
+/home/wassal/trust-wassal/tutorials/results/archieve/vanilla_resnet50- 
+resnet50 for 2nd epoch, resnet18,AL model for all the epochs hence flawed. resnet50 also has confusion on embeddings
+soft versions where not doing good
+seeds = [24, 25, 26, 27, 28]
+budgets = [40, 50, 60, 70,80,90,100]
+rounds=10
+

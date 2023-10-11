@@ -47,8 +47,10 @@ class WASSAL_Multiclass(Strategy):
     """
     
     def __init__(self, labeled_dataset, unlabeled_dataset, query_dataset,net, nclasses, args={}): #
-        #pretrained resnet18 as 
-        self.net = resnet50(pretrained=True)
+        #pretrained resnet18 as
+        self.pretrained_model=True 
+        self.net = resnet18(pretrained=True)
+        #self.pretrained_model=True 
         #self.net=net
         #merge labeled and query dataset into query and non-query classes and finetune the resnet50
         
@@ -99,6 +101,10 @@ class WASSAL_Multiclass(Strategy):
         else:
             raise ValueError("Unknown embedding type.")
     
+    #update based on we needed AL model or pretrained model
+    def update_model(self, clf):
+        if not self.pretrained_model:
+            self.model = clf
     def select(self, budget):
         # venkat sir's code
         """

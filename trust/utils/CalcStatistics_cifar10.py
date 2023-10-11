@@ -8,13 +8,13 @@ import matplotlib.pyplot as plt
 
 #budgets=['5']
 #filename = "output_statistics_cifar_classimb_withAL_"
-rounds=10
+rounds=5
 
 #for pneumonia
-base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
+base_dir = "/home/wassal/trust-wassal/tutorials/results/cifar10/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
-budgets=[24,50]
-filename = "output_statistics_pneumo_vanilla"
+budgets=[100, 200]
+filename = "output_statistics_cifar10_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
 #strategy_group="allstrategies"
