@@ -249,8 +249,6 @@ def load_biodataset_custom(datadir, dset_name, feature, split_cfg, augVal=False,
         input_size = 32
         data_transforms = {
             'train' : transforms.Compose([
-                transforms.RandomHorizontalFlip(),
-                transforms.RandomVerticalFlip(),
                 transforms.ToTensor(),
                 transforms.Normalize(mean=[0.5],std=[0.5])
             ]),
@@ -263,8 +261,8 @@ def load_biodataset_custom(datadir, dset_name, feature, split_cfg, augVal=False,
         Dataclass = name_to_class[dset_name][0]
         fullset = Dataclass(root=datadir,split="train",transform=data_transforms['train'],download=True)
         test_set = Dataclass(root=datadir,split="test",transform=data_transforms['test'],download=True)
-        fullset = swap_labels(fullset)
-        test_set = swap_labels(test_set)
+        #fullset = swap_labels(fullset)
+        #test_set = swap_labels(test_set)
         
         if(feature=="classimb"):
             train_set, val_set, lake_set, imb_cls_idx = create_class_imb_bio(dset_name, fullset, split_cfg, num_cls, augVal)

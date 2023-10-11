@@ -268,13 +268,18 @@ def get_balanced_samples(class_samples, n_samples):
     shuffle(class_samples)
     return class_samples[:n_samples]
 
+def penalized_samples_size(total_samples, proportion):
+    """Calculate penalized sample size based on proportion."""
+    return int(total_samples * (1 - proportion))
 
-def getQuerySet(val_set, imb_cls_idx, balanced=False):
-    if not balanced:
+def getQuerySet(val_set, imb_cls_idx, recipe="asis"):
+    targets_tensor = torch.Tensor(val_set.targets).float()
+    
+    if recipe == "asis":
         miscls_idx = []
         for i in imb_cls_idx:
             imb_cls_samples = list(
-                torch.where(torch.Tensor(val_set.targets).float() == i)[0].cpu().numpy()
+                torch.where(targets_tensor == i)[0].cpu().numpy()
             )
             miscls_idx += imb_cls_samples
         print(
@@ -283,23 +288,21 @@ def getQuerySet(val_set, imb_cls_idx, balanced=False):
         )
         return SubsetWithTargets(val_set, miscls_idx, val_set.targets[miscls_idx])
 
-    else:
-        n_samples_per_class = []  # List to store sizes of each imbalanced class
+    elif recipe == "balanced":
+        n_samples_per_class = []
 
         for i in imb_cls_idx:
             imb_cls_samples = list(
-                torch.where(torch.Tensor(val_set.targets).float() == i)[0].cpu().numpy()
+                torch.where(targets_tensor == i)[0].cpu().numpy()
             )
             n_samples_per_class.append(len(imb_cls_samples))
 
-        # Take the minimum number of samples among imbalanced classes
         n_samples = min(n_samples_per_class)
-
         miscls_idx = []
 
         for i in imb_cls_idx:
             imb_cls_samples = list(
-                torch.where(torch.Tensor(val_set.targets).float() == i)[0].cpu().numpy()
+                torch.where(targets_tensor == i)[0].cpu().numpy()
             )
             miscls_idx += get_balanced_samples(imb_cls_samples, n_samples)
 
@@ -309,6 +312,36 @@ def getQuerySet(val_set, imb_cls_idx, balanced=False):
         )
 
         return SubsetWithTargets(val_set, miscls_idx, val_set.targets[miscls_idx])
+
+    elif recipe == "penalized":
+        class_counts = {i: 0 for i in imb_cls_idx}
+        total_samples = len(targets_tensor)
+
+        # Calculate the number of samples for each class in imb_cls_idx
+        for i in imb_cls_idx:
+            class_counts[i] = torch.sum(targets_tensor == i).item()
+
+        # Calculate proportion for each class
+        class_proportions = {i: count / total_samples for i, count in class_counts.items()}
+
+        miscls_idx = []
+        for i in imb_cls_idx:
+            imb_cls_samples = list(
+                torch.where(targets_tensor == i)[0].cpu().numpy()
+            )
+            penalized_size = penalized_samples_size(len(imb_cls_samples), class_proportions[i])
+            miscls_idx += get_balanced_samples(imb_cls_samples, penalized_size)
+            print('Query selection for class {} with penalized size {}'.format(i, penalized_size))
+        print(
+            "Total penalized samples from imbalanced classes as Queries (Size of query set): ",
+            len(miscls_idx),
+        )
+
+        return SubsetWithTargets(val_set, miscls_idx, val_set.targets[miscls_idx])
+
+    else:
+        raise ValueError(f"Unknown recipe type: {recipe}")
+
 
 
 def getPrivateSet(val_set, imb_cls_idx):
@@ -329,6 +362,12 @@ def getPrivateSet(val_set, imb_cls_idx):
     )
     return SubsetWithTargets(val_set, private_idx, val_set.targets[private_idx])
 
+def getHigheestClassNumber(trainset):
+    targets_tensor = torch.Tensor(trainset.targets).float()
+    class_counts = {}
+    for i in range(num_cls):
+        class_counts[i] = torch.sum(targets_tensor == i).item()
+    return max(class_counts.values())
 
 def getPerClassSel(lake_set, subset, num_cls):
     perClsSel = []
@@ -525,7 +564,7 @@ split_cfg = {
     "sel_cls_idx": [0, 1],
     "per_imbclass_train": {0: 50, 1: 50},
     "per_imbclass_val": {0: 50, 1: 50},
-    "per_imbclass_lake": {0: 3000, 1: 1000},
+    "per_imbclass_lake": {0: 1000, 1: 3000},
     "per_imbclass_test": {0: 300, 1: 300},
     # "sel_cls_idx": [0, 1],
     # "per_imbclass_train": {0: 5, 1: 5},
@@ -720,7 +759,7 @@ def run_targeted_selection(
     # if AL_WITHSOFT
     if strategy == "AL_WITHSOFT":
         for_query_set = getQuerySet(
-            ConcatWithTargets(train_set, val_set), sel_cls_idx, balanced=True
+            ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
         )
         #
         strategy_softsubset = WASSAL_Multiclass(
@@ -831,7 +870,7 @@ def run_targeted_selection(
         )
     if strategy == "WASSAL" or strategy == "WASSAL_SOFT":
         for_query_set = getQuerySet(
-            ConcatWithTargets(train_set, val_set), sel_cls_idx, balanced=True
+            ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
         )
         strategy_sel = WASSAL_Multiclass(
             train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
@@ -988,14 +1027,14 @@ def run_targeted_selection(
             if strategy == "AL_WITHSOFT":
                 if sf == "glister-tss" or sf == "gradmatch-tss":
                     for_query_set = getQuerySet(
-                        ConcatWithTargets(train_set, val_set), sel_cls_idx
+                        ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
                     )
                     strategy_softsubset.update_queries(for_query_set)
                     strategy_sel.update_queries(for_query_set)
                     print("size of query set", len(for_query_set))
                 else:
                     for_query_set = getQuerySet(
-                        ConcatWithTargets(train_set, val_set), sel_cls_idx, True
+                        ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
                     )
                     strategy_softsubset.update_queries(for_query_set)
 
@@ -1269,12 +1308,14 @@ def run_targeted_selection(
                     targets_refrain = targets_refrain.repeat(len(lake_set))
                     sofftsimplex_query = simplex_query.detach().cpu().numpy()
                     softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
-                    # choose the top simplex_query that contributes 30% to the total simplex_query
+                    # choose the top simplex_query that contributes 30% to the size of that class in trainset
                     _, top_n_indices = top_elements_contribute_to_percentage(
-                        sofftsimplex_query, ss_max_budget, int(budget / 2)
+                        sofftsimplex_query, ss_max_budget,getHigheestClassNumber(trainset)*2
                     )
+
+                   
                     _, top_n_refrain_indices = top_elements_contribute_to_percentage(
-                        softsimplex_refrain, ss_max_budget, int(budget / 2)
+                        softsimplex_refrain, ss_max_budget, getHigheestClassNumber(trainset)
                     )
 
                     # Collect the data
@@ -1288,12 +1329,12 @@ def run_targeted_selection(
                     ].tolist()
                     softsimplex_query_normed = (
                         sofftsimplex_query[top_n_indices]
-                        / sofftsimplex_query[top_n_indices].sum()
+                        / (sofftsimplex_query[top_n_indices].sum())
                     )
                     all_small_simplex_query += softsimplex_query_normed.tolist()
                     softsimplex_refrain_normed = (
                         softsimplex_refrain[top_n_refrain_indices]
-                        / softsimplex_refrain[top_n_refrain_indices].sum()
+                        / (softsimplex_refrain[top_n_refrain_indices].sum())
                     )
                     all_small_simplex_refrain += softsimplex_query_normed.tolist()
 
@@ -1810,11 +1851,11 @@ strategies = [
     # al soft
     # ("WASSAL_SOFT", "WASSAL_SOFT"),
     # ("WASSAL", "WASSAL"),
-    ("AL", "us"),
-    ("AL_WITHSOFT", "us_soft"),
+    #("AL", "us"),
+    #("AL_WITHSOFT", "us_soft"),
     # ("AL_WITHSOFT", "glister_soft"),
     # ("AL_WITHSOFT", 'gradmatch-tss_soft'),
-    ("AL", "coreset"),
+    #("AL", "coreset"),
     ("AL_WITHSOFT", "coreset_soft"),
     ("AL", "leastconf"),
     ("AL_WITHSOFT", "leastconf_soft"),

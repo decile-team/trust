@@ -2,11 +2,12 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # File paths
-us_filepath = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds6/us/24/exp1/pneumoniamnist_classimb_AL_2_us_budget:24_rounds:6_runsexp1.csv"
-us_soft_filepath = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds6/WASSAL/24/exp1/pneumoniamnist_classimb_WASSAL_2_WASSAL_budget:24_rounds:6_runsexp1.csv"
+us_filepath = "/home/wassal/trust-wassal/tutorials/results/cifar10/classimb/rounds5/coreset/100/exp1/cifar10_classimb_AL_10_coreset_budget:100_rounds:5_runsexp1.csv"
+us_soft_filepath = "/home/wassal/trust-wassal/tutorials/results/cifar10/classimb/rounds5/coreset_soft/100/exp1/cifar10_classimb_AL_WITHSOFT_10_coreset_soft_budget:100_rounds:5_runsexp1.csv"
 
-# Read data without headers and manually assign column names
-column_names = ["Class0", "Class1", "Avg"]
+# Read data without headers and manually assign column names based on CIFAR10
+column_names=["Class0", "Class1", "Class2", "Class3", "Class4", "Class5", "Class6", "Class7", "Class8", "Class9", "Avg"]
+
 # Assuming the data in each file is stored as comma-separated values
 us_data = pd.read_csv(us_filepath ,header=None, names=column_names)
 us_soft_data = pd.read_csv(us_soft_filepath, header=None, names=column_names)

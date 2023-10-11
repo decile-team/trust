@@ -13,7 +13,7 @@ rounds=5
 #for pneumonia
 base_dir = "/home/wassal/trust-wassal/tutorials/results/cifar10/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
-budgets=[100, 200]
+budgets=[100, 200,300,400]
 filename = "output_statistics_cifar10_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
@@ -79,8 +79,8 @@ with open(output_path+".csv", "w", newline='') as csvfile:
                     #cumlative gains from each row
                     #for i in range(0,5):
                     #gains=
-                    y1 = df.iloc[0, 1]
-                    y2 = df.iloc[rounds-1, 1]
+                    y1 = df.iloc[0, 9]
+                    y2 = df.iloc[rounds-1, 9]
                     gain = y2 - y1
                     gains.append(gain)
                 if not gains:

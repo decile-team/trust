@@ -89,7 +89,7 @@ class DataHandler_CIFAR10(Dataset):
         if(use_test_transform):
             transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
         else:
-            transform = transforms.Compose([transforms.RandomCrop(32, padding=4), transforms.RandomHorizontalFlip(), transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
+            transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))])
         if not self.select:
             self.X = X
             self.targets = Y
@@ -575,12 +575,16 @@ def load_dataset_custom(datadir, dset_name, feature, split_cfg, augVal=False, da
         num_cls=10
         SVHN_test_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
         if(dataAug):
-            SVHN_transform = transforms.Compose([transforms.RandomCrop(32, padding=4), transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
+            SVHN_transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.485, 0.456, 0.406), (0.229, 0.224, 0.225))])
         else:
             SVHN_transform = SVHN_test_transform
         
         fullset = torchvision.datasets.SVHN(root=datadir, split="train", download=True, transform=SVHN_transform)
         test_set = torchvision.datasets.SVHN(root=datadir, split="test", download=True, transform=SVHN_test_transform)
+
+        #svhn has labels and we need to rename it targets
+        fullset.targets = fullset.labels
+        test_set.targets = test_set.labels
         if(feature=="classimb"):
             if("sel_cls_idx" in split_cfg):
                 train_set, val_set, lake_set, imb_cls_idx = create_perclass_imb(dset_name, fullset, split_cfg, num_cls, augVal)

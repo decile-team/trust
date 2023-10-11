@@ -48,10 +48,10 @@ class WASSAL_Multiclass(Strategy):
     
     def __init__(self, labeled_dataset, unlabeled_dataset, query_dataset,net, nclasses, args={}): #
         #pretrained resnet18 as
-        self.pretrained_model=True 
-        self.net = resnet18(pretrained=True)
         #self.pretrained_model=True 
-        #self.net=net
+        #self.net = resnet18(pretrained=True)
+        self.pretrained_model=False 
+        self.net=net
         #merge labeled and query dataset into query and non-query classes and finetune the resnet50
         
         

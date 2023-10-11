@@ -22,3 +22,6 @@ cifar10_simplex_distribution_class_8.png
 cifar10_simplex_distribution_class_9.png
 pneumo_simplex_distribution_class_0.png
 pneumo_simplex_distribution_class_1.png
+data/test_32x32.mat
+.gitignore
+data/train_32x32.mat
