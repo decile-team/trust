@@ -2,8 +2,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 # File paths
-us_filepath = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds10/coreset/40/exp2/pneumoniamnist_classimb_AL_2_coreset_budget:40_rounds:10_runsexp2.csv"
-us_soft_filepath = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds10/coreset_soft/40/exp2/pneumoniamnist_classimb_AL_WITHSOFT_2_coreset_soft_budget:40_rounds:10_runsexp2.csv"
+us_filepath = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds10/gradmatch-tss/40/exp2/pneumoniamnist_classimb_AL_2_gradmatch-tss_budget:40_rounds:10_runsexp2.csv"
+us_soft_filepath = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds10/gradmatch-tss_withsoft/40/exp2/pneumoniamnist_classimb_AL_WITHSOFT_2_gradmatch-tss_withsoft_budget:40_rounds:10_runsexp2.csv"
 
 # Read data without headers and manually assign column names
 column_names = ["Class0", "Class1", "Avg"]

@@ -166,6 +166,7 @@ def find_err_per_class(
     final_tst_predictions,
     saveDir,
     prefix,
+    doIdisplayTable=True,
 ):
     val_err_idx = list(np.where(np.array(final_val_classifications) == False)[0])
     tst_err_idx = list(np.where(np.array(final_tst_classifications) == False)[0])
@@ -193,7 +194,10 @@ def find_err_per_class(
         val_class_err_idxs.append(val_err_class_idx)
         tst_err_log.append(tst_error_perc)
         val_err_log.append(val_error_perc)
-    displayTable(val_err_log, tst_err_log)
+
+    if doIdisplayTable:
+        displayTable(val_err_log, tst_err_log)
+
     tst_err_log.append(sum(tst_err_log) / len(tst_err_log))
     val_err_log.append(sum(val_err_log) / len(val_err_log))
     return tst_err_log, val_err_log, val_class_err_idxs
@@ -256,7 +260,7 @@ def aug_train_subset(
             remain_lake_idx,
             torch.Tensor(true_lake_set.targets.float())[remain_lake_idx],
         )
-    #     print(len(lake_ss),len(remain_lake_set),len(lake_set))
+    print(len(lake_ss), len(remain_lake_set), len(lake_set))
     aug_train_set = ConcatWithTargets(train_set, lake_ss)
     aug_trainloader = torch.utils.data.DataLoader(
         train_set, batch_size=1000, shuffle=True, pin_memory=True
@@ -268,19 +272,19 @@ def get_balanced_samples(class_samples, n_samples):
     shuffle(class_samples)
     return class_samples[:n_samples]
 
+
 def penalized_samples_size(total_samples, proportion):
     """Calculate penalized sample size based on proportion."""
     return int(total_samples * (1 - proportion))
 
+
 def getQuerySet(val_set, imb_cls_idx, recipe="asis"):
     targets_tensor = torch.Tensor(val_set.targets).float()
-    
+
     if recipe == "asis":
         miscls_idx = []
         for i in imb_cls_idx:
-            imb_cls_samples = list(
-                torch.where(targets_tensor == i)[0].cpu().numpy()
-            )
+            imb_cls_samples = list(torch.where(targets_tensor == i)[0].cpu().numpy())
             miscls_idx += imb_cls_samples
         print(
             "Total samples from imbalanced classes as Queries (Size of query set): ",
@@ -292,18 +296,14 @@ def getQuerySet(val_set, imb_cls_idx, recipe="asis"):
         n_samples_per_class = []
 
         for i in imb_cls_idx:
-            imb_cls_samples = list(
-                torch.where(targets_tensor == i)[0].cpu().numpy()
-            )
+            imb_cls_samples = list(torch.where(targets_tensor == i)[0].cpu().numpy())
             n_samples_per_class.append(len(imb_cls_samples))
 
         n_samples = min(n_samples_per_class)
         miscls_idx = []
 
         for i in imb_cls_idx:
-            imb_cls_samples = list(
-                torch.where(targets_tensor == i)[0].cpu().numpy()
-            )
+            imb_cls_samples = list(torch.where(targets_tensor == i)[0].cpu().numpy())
             miscls_idx += get_balanced_samples(imb_cls_samples, n_samples)
 
         print(
@@ -322,16 +322,22 @@ def getQuerySet(val_set, imb_cls_idx, recipe="asis"):
             class_counts[i] = torch.sum(targets_tensor == i).item()
 
         # Calculate proportion for each class
-        class_proportions = {i: count / total_samples for i, count in class_counts.items()}
+        class_proportions = {
+            i: count / total_samples for i, count in class_counts.items()
+        }
 
         miscls_idx = []
         for i in imb_cls_idx:
-            imb_cls_samples = list(
-                torch.where(targets_tensor == i)[0].cpu().numpy()
+            imb_cls_samples = list(torch.where(targets_tensor == i)[0].cpu().numpy())
+            penalized_size = penalized_samples_size(
+                len(imb_cls_samples), class_proportions[i]
             )
-            penalized_size = penalized_samples_size(len(imb_cls_samples), class_proportions[i])
             miscls_idx += get_balanced_samples(imb_cls_samples, penalized_size)
-            print('Query selection for class {} with penalized size {}'.format(i, penalized_size))
+            print(
+                "Query selection for class {} with penalized size {}".format(
+                    i, penalized_size
+                )
+            )
         print(
             "Total penalized samples from imbalanced classes as Queries (Size of query set): ",
             len(miscls_idx),
@@ -341,7 +347,6 @@ def getQuerySet(val_set, imb_cls_idx, recipe="asis"):
 
     else:
         raise ValueError(f"Unknown recipe type: {recipe}")
-
 
 
 def getPrivateSet(val_set, imb_cls_idx):
@@ -362,12 +367,14 @@ def getPrivateSet(val_set, imb_cls_idx):
     )
     return SubsetWithTargets(val_set, private_idx, val_set.targets[private_idx])
 
+
 def getHigheestClassNumber(trainset):
     targets_tensor = torch.Tensor(trainset.targets).float()
     class_counts = {}
     for i in range(num_cls):
         class_counts[i] = torch.sum(targets_tensor == i).item()
     return max(class_counts.values())
+
 
 def getPerClassSel(lake_set, subset, num_cls):
     perClsSel = []
@@ -382,7 +389,7 @@ def getPerClassSel(lake_set, subset, num_cls):
 
 
 def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
-    # Plot the distribution of the simplex query colorcoded based on the true labels
+    # Plot the distribution of the simplex query colorcoded based odn the true labels
     for _, simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
         # Determine histogram bin edges
         counts, bin_edges = np.histogram(simplex_query, bins=10)
@@ -641,7 +648,7 @@ def run_targeted_selection(
     # Budget for subset selection
     bud = budget
     # soft subset max budget % of the lake set
-    ss_max_budget = 30
+    ss_max_budget = 80
     # Variables to store accuracies
     num_rounds = 10  # The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
@@ -719,62 +726,25 @@ def run_targeted_selection(
         "min_iteration": 15,
     }
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
-    print("initailizing strategy class for " + sf)
-    if strategy == "AL":
-        if sf == "badge":
-            strategy_sel = BADGE(
-                train_set, unlabeled_lake_set, model, num_cls, strategy_args
-            )
-        elif sf == "us":
-            strategy_sel = EntropySampling(
-                train_set, unlabeled_lake_set, model, num_cls, strategy_args
-            )
-        elif sf == "glister" or sf == "glister-tss":
-            strategy_sel = GLISTER(
-                train_set,
-                unlabeled_lake_set,
-                model,
-                num_cls,
-                strategy_args,
-                val_set,
-                typeOf="rand",
-                lam=0.1,
-            )
-        elif sf == "gradmatch-tss":
-            strategy_sel = GradMatchActive(
-                train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set
-            )
-        elif sf == "coreset":
-            strategy_sel = CoreSet(
-                train_set, unlabeled_lake_set, model, num_cls, strategy_args
-            )
-        elif sf == "leastconf":
-            strategy_sel = LeastConfidenceSampling(
-                train_set, unlabeled_lake_set, model, num_cls, strategy_args
-            )
-        elif sf == "margin":
-            strategy_sel = MarginSampling(
-                train_set, unlabeled_lake_set, model, num_cls, strategy_args
-            )
-    # if AL_WITHSOFT
-    if strategy == "AL_WITHSOFT":
-        for_query_set = getQuerySet(
-            ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
-        )
+    if "WITHSOFT" in strategy:
+        print("initaizing models for soft subset training")
+        for_query_set = getQuerySet(train_set, sel_cls_idx, recipe="asis")
         #
         strategy_softsubset = WASSAL_Multiclass(
             train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
         )
 
-        if sf[:-5] == "badge":
+    print("initailizing strategy class for " + sf)
+    if strategy == "AL" or strategy == "AL_WITHSOFT":
+        if sf == "badge" or sf == "badge_withsoft":
             strategy_sel = BADGE(
                 train_set, unlabeled_lake_set, model, num_cls, strategy_args
             )
-        elif sf[:-5] == "us":
+        elif sf == "us" or sf == "us_withsoft":
             strategy_sel = EntropySampling(
                 train_set, unlabeled_lake_set, model, num_cls, strategy_args
             )
-        elif sf[:-5] == "glister" or sf == "glister-tss":
+        elif sf == "glister" or sf == "glister_withsoft":
             strategy_sel = GLISTER(
                 train_set,
                 unlabeled_lake_set,
@@ -785,75 +755,36 @@ def run_targeted_selection(
                 typeOf="rand",
                 lam=0.1,
             )
-        elif sf[:-5] == "gradmatch-tss":
+        elif sf == "gradmatch-tss" or sf == "gradmatch-tss_withsoft":
             strategy_sel = GradMatchActive(
                 train_set, unlabeled_lake_set, model, num_cls, strategy_args, val_set
             )
-        elif sf[:-5] == "coreset":
+        elif sf == "coreset" or sf == "coreset_withsoft":
             strategy_sel = CoreSet(
                 train_set, unlabeled_lake_set, model, num_cls, strategy_args
             )
-        elif sf[:-5] == "leastconf":
+        elif sf == "leastconf" or sf == "leastconf_withsoft":
             strategy_sel = LeastConfidenceSampling(
                 train_set, unlabeled_lake_set, model, num_cls, strategy_args
             )
-        elif sf[:-5] == "margin":
+        elif sf == "margin" or sf == "margin_withsoft":
             strategy_sel = MarginSampling(
                 train_set, unlabeled_lake_set, model, num_cls, strategy_args
             )
 
-    if strategy == "SIM":
+    elif strategy == "SIM" or strategy == "SIM_WITHSOFT":
         strategy_args["smi_function"] = sf
         strategy_args["optimizer"] = "LazyGreedy"
-        for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set), sel_cls_idx)
-        strategy_sel = SMI(
-            train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
-        )
-    if strategy == "SIM_WITHSOFT":
-        # remove the '_soft' from the sf name
-        strategy_args["smi_function"] = sf[:-5]
-        strategy_args["optimizer"] = "LazyGreedy"
-        for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set), sel_cls_idx)
-        strategy_softsubset = WASSAL(
-            train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
-        )
+        for_query_set = getQuerySet(train_set, sel_cls_idx)
         strategy_sel = SMI(
             train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
         )
 
-    if strategy == "SCMI":
+    elif strategy == "SCMI" or strategy == "SCMI_WITHSOFT":
         strategy_args["scmi_function"] = sf
         strategy_args["optimizer"] = "LazyGreedy"
-        for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set), sel_cls_idx)
-        for_private_set = getPrivateSet(
-            ConcatWithTargets(train_set, val_set), sel_cls_idx
-        )
-        strategy_sel = SCMI(
-            train_set,
-            unlabeled_lake_set,
-            for_query_set,
-            for_private_set,
-            model,
-            num_cls,
-            strategy_args,
-        )
-    if strategy == "SCMI_WITHSOFT":
-        # remove the '_soft' from the sf name
-        strategy_args["scmi_function"] = sf[:-5]
-        strategy_args["optimizer"] = "LazyGreedy"
-        for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set), sel_cls_idx)
-        for_private_set = getPrivateSet(
-            ConcatWithTargets(train_set, val_set), sel_cls_idx
-        )
-        strategy_softsubset = WASSAL_P(
-            train_set,
-            unlabeled_lake_set,
-            for_query_set,
-            for_private_set,
-            model,
-            num_cls,
-            strategy_args,
-        )
+        for_query_set = getQuerySet(train_set, sel_cls_idx)
+        for_private_set = getPrivateSet(train_set, sel_cls_idx)
         strategy_sel = SCMI(
             train_set,
             unlabeled_lake_set,
@@ -868,18 +799,15 @@ def run_targeted_selection(
         strategy_sel = RandomSampling(
             train_set, unlabeled_lake_set, model, num_cls, strategy_args
         )
-    if strategy == "WASSAL" or strategy == "WASSAL_SOFT":
-        for_query_set = getQuerySet(
-            ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
-        )
+    if strategy == "WASSAL" or strategy == "WASSAL_WITHSOFT":
+        for_query_set = getQuerySet(train_set, sel_cls_idx, recipe="asis")
         strategy_sel = WASSAL_Multiclass(
             train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
         )
-    if strategy == "WASSAL_P":
-        for_query_set = getQuerySet(ConcatWithTargets(train_set, val_set), sel_cls_idx)
-        for_private_set = getPrivateSet(
-            ConcatWithTargets(train_set, val_set), sel_cls_idx
-        )
+
+    if strategy == "WASSAL_P" or strategy == "WASSAL_P_WITHSOFT":
+        for_query_set = getQuerySet(train_set, sel_cls_idx)
+        for_private_set = getPrivateSet(train_set, sel_cls_idx)
         strategy_sel = WASSAL_P(
             train_set,
             unlabeled_lake_set,
@@ -959,15 +887,12 @@ def run_targeted_selection(
         else:
             # Remove true labels from the unlabeled dataset, the hypothesized labels are computed when select is called
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
+            print(
+                "Started a new AL round, and updating the model and data(train and unlabeled_set) for strategy "
+                + sf
+            )
             strategy_sel.update_data(train_set, unlabeled_lake_set)
             strategy_sel.update_model(model)
-            if (
-                strategy == "SIM_WITHSOFT"
-                or strategy == "SCMI_WITHSOFT"
-                or strategy == "AL_WITHSOFT"
-            ):
-                strategy_softsubset.update_data(train_set, unlabeled_lake_set)
-                strategy_softsubset.update_model(model)
 
             # compute the error log before every selection
             if computeErrorLog:
@@ -981,169 +906,398 @@ def run_targeted_selection(
                     all_logs_dir,
                     sf + "_" + str(bud),
                 )
+
                 csvlog.append([100 - x for x in tst_err_log])
                 val_csvlog.append([100 - x for x in val_err_log])
+
+            # see if there is a need for softsubsetting
+
+            if "WITHSOFT" in strategy:
+                # softsubsetting phase
+                _, val_err_stat, _ = find_err_per_class(
+                    test_set,
+                    val_set,
+                    final_val_classifications,
+                    final_val_predictions,
+                    final_tst_classifications,
+                    final_tst_predictions,
+                    all_logs_dir,
+                    sf + "_" + str(bud),
+                    False,
+                )
+                # lets keep only classwise val error, last element is average val error
+                val_err_stat = val_err_stat[:-1]
+                val_err_stat = [100 - i for i in val_err_stat]
+                # lets find the highest val error and enumerate classes that have val_err less than 5% of that
+                max_val_err = max(val_err_stat)
+                sel_cls_idx_for_soft = [
+                    i
+                    for i, x in enumerate(val_err_stat)
+                    if x < ((max_val_err) - (0.05 * max_val_err))
+                ]
+                # flag to check if we need to do softsubset, is done only when sel_cls_idx is not empty
+                do_softsubset = False
+                if len(sel_cls_idx_for_soft) > 0:
+                    print("softsubsetting needed for classes:", sel_cls_idx_for_soft)
+                    do_softsubset = True
+
+                # update model or query of strategy_softsubset only when do_softsubset is true
+                if do_softsubset:
+                    print(
+                        "Updating softsoft data and model since there is imbalance in val accuracy for classes",
+                        sel_cls_idx_for_soft,
+                        "for strategy " + sf,
+                    )
+
+                    strategy_softsubset.update_data(train_set, unlabeled_lake_set)
+                    strategy_softsubset.update_model(model)
+
+                    for_query_set = getQuerySet(train_set, sel_cls_idx_for_soft)
+                    strategy_softsubset.update_queries(for_query_set)
+
+                    # training model with softsubsets if do_softsubset is true
+                    classwise_final_indices_simplex = None
+                    print(
+                        "Calculating simplexes since we need to do softsubsetting for strategy "
+                        + sf
+                    )
+                    classwise_final_indices_simplex = strategy_softsubset.select(budget)
+                    classwise_final_indices_simplex_cpu = [
+                        (
+                            indicex,
+                            tensor1.clone().cpu().detach(),
+                            tensor2.clone().cpu().detach(),
+                            class_idx,
+                        )
+                        for (
+                            indicex,
+                            tensor1,
+                            tensor2,
+                            class_idx,
+                        ) in classwise_final_indices_simplex
+                    ]
+
+                    plotsimpelxDistribution(
+                        lake_set, classwise_final_indices_simplex_cpu
+                    )
+
+                    print("Doing softsubsetting for strategy " + sf)
+
+                    # Aggregation lists
+                    all_small_images = []
+                    all_small_targets = []
+                    all_small_simplex_query = []
+                    all_small_refrain_images = []
+                    all_small_refrain_targets = []
+                    all_small_simplex_refrain = []
+                    all_soft_selected_indices = []
+                    for (
+                        sel_cls_idx_temp,
+                        simplex_query,
+                        simplex_refrain,
+                        class_idx,
+                    ) in classwise_final_indices_simplex:
+                        # Extract images and targets from weighted_lake_set
+                        images = [lake_set[i][0] for i in range(len(lake_set))]
+                        targets = torch.tensor(class_idx)
+                        targets_refrain = torch.tensor(class_idx)
+                        targets = targets.repeat(len(lake_set))
+                        targets_refrain = targets_refrain.repeat(len(lake_set))
+                        sofftsimplex_query = simplex_query.detach().cpu().numpy()
+                        softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
+                        # choose the top simplex_query that contributes 30% to the size of that class in trainset
+                        _, top_n_indices = top_elements_contribute_to_percentage(
+                            sofftsimplex_query, ss_max_budget, budget * 3
+                        )
+
+                        (
+                            _,
+                            top_n_refrain_indices,
+                        ) = top_elements_contribute_to_percentage(
+                            softsimplex_refrain, ss_max_budget, budget * 3
+                        )
+                        all_soft_selected_indices += top_n_indices
+                        # Collect the data
+                        all_small_images += [images[i] for i in top_n_indices]
+                        all_small_refrain_images += [
+                            images[i] for i in top_n_refrain_indices
+                        ]
+                        all_small_targets += targets[top_n_indices.copy()].tolist()
+                        all_small_refrain_targets += targets_refrain[
+                            top_n_refrain_indices.copy()
+                        ].tolist()
+                        softsimplex_query_normed = sofftsimplex_query[top_n_indices] / (
+                            sofftsimplex_query[top_n_indices].sum()
+                        )
+                        all_small_simplex_query += sofftsimplex_query[
+                            top_n_indices
+                        ].tolist()
+                        softsimplex_refrain_normed = softsimplex_refrain[
+                            top_n_refrain_indices
+                        ] / (softsimplex_refrain[top_n_refrain_indices].sum())
+                        all_small_simplex_refrain += softsimplex_query_normed.tolist()
+                    softPerClass = getPerClassSel(
+                        true_lake_set, all_soft_selected_indices, num_cls
+                    )
+                    print("total class selected for softsubset", len(all_small_targets))
+                    print("per class selected for softsubset", softPerClass)
+                    # Convert lists to tensors
+                    all_small_targets = torch.tensor(all_small_targets)
+                    all_small_refrain_targets = torch.tensor(all_small_refrain_targets)
+                    all_small_simplex_query = torch.tensor(all_small_simplex_query)
+                    all_small_simplex_refrain = torch.tensor(all_small_simplex_refrain)
+
+                    # Form the combined weighted dataset
+                    weighted_lake_set = WeightedDataset(
+                        all_small_images,
+                        all_small_targets,
+                        all_small_simplex_query,
+                        None,
+                        None,
+                    )
+                    weighted_refrain_lake_set = WeightedDataset(
+                        all_small_refrain_images,
+                        all_small_refrain_targets,
+                        all_small_simplex_refrain,
+                        None,
+                        None,
+                    )
+
+                    # Load into a dataloader
+                    weighted_lakeloader = torch.utils.data.DataLoader(
+                        weighted_lake_set,
+                        batch_size=len(weighted_lake_set),
+                        shuffle=True,
+                        pin_memory=True,
+                    )
+                    weighted_refrain_lakeloader = torch.utils.data.DataLoader(
+                        weighted_refrain_lake_set,
+                        batch_size=len(weighted_refrain_lake_set),
+                        shuffle=True,
+                        pin_memory=True,
+                    )
+
+                    # start training
+                    print("starting weighted training for " + sf)
+                    start_time = time.time()
+                    num_ep = 1
+                    sft_trn_acc = 0.0
+                    while sft_trn_acc < 0.99 and num_ep < 100:
+                        model.train()
+                        loss = 0.0
+
+                        # firs negate refrains
+                        # for batch_idx, (inputs, targets,simplex_refrain,_,_) in enumerate(weighted_refrain_lakeloader):
+                        #     # Variables in Pytorch are differentiable.
+                        #     inputs = inputs.to(device)
+                        #     targets = targets.to(device)
+
+                        #     simplex_refrain=simplex_query.to(device)
+                        #     # This will zero out the gradients for this batch.
+
+                        #     outputs = model(inputs)
+                        #     target_loss_per_sample=criterion(outputs, targets)
+                        #     loss -= (simplex_query*target_loss_per_sample).sum()
+
+                        for batch_idx, (
+                            inputs,
+                            targets,
+                            simplex_query,
+                            _,
+                            _,
+                        ) in enumerate(weighted_lakeloader):
+                            # Variables in Pytorch are differentiable.
+                            inputs = inputs.to(device)
+                            targets = targets.to(device)
+                            # normalize simplex_query
+
+                            simplex_query = simplex_query.to(device)
+                            # This will zero out the gradients for this batch.
+                            optimizer.zero_grad()
+                            outputs = model(inputs)
+                            target_loss_per_sample = criterion(outputs, targets)
+                            loss += (simplex_query * target_loss_per_sample).sum()
+                            # loss=target_loss_per_sample.sum()
+                            loss.backward()
+                            optimizer.step()
+                        full_trn_loss = 0
+                        full_trn_correct = 0
+                        full_trn_total = 0
+                        model.eval()
+                        loss = 0.0
+                        sft_trn_acc = 0.0
+                        with torch.no_grad():
+                            # for batch_idx, (inputs, targets,simplex_refrain,_,_) in enumerate(weighted_refrain_lakeloader):
+                            #     # Variables in Pytorch are differentiable.
+                            #     inputs = inputs.to(device)
+                            #     targets = targets.to(device)
+
+                            #     simplex_refrain=simplex_refrain.to(device)
+                            #     # This will zero out the gradients for this batch.
+                            #     optimizer.zero_grad()
+                            #     outputs = model(inputs)
+                            #     loss -= criterion(outputs, targets)
+
+                            for batch_idx, (
+                                inputs,
+                                targets,
+                                simplex_query,
+                                _,
+                                _,
+                            ) in enumerate(weighted_lakeloader):
+                                inputs, targets, simplex_query = (
+                                    inputs.to(device),
+                                    targets.to(device, non_blocking=True),
+                                    simplex_query.to(device),
+                                )
+                                outputs = model(inputs)
+                                loss = criterion(outputs, targets)
+                                # check
+                                # full_trn_loss += loss.sum().item()
+                                full_trn_loss += loss.sum().item()
+                                _, predicted = outputs.max(1)
+                                full_trn_total += targets.size(0)
+                                full_trn_correct += predicted.eq(targets).sum().item()
+                            sft_trn_acc = full_trn_correct / full_trn_total
+                            print(
+                                "Selection Epoch ",
+                                i,
+                                " Training epoch [",
+                                num_ep,
+                                "]",
+                                " Training Acc: ",
+                                sft_trn_acc,
+                                end="\r",
+                            )
+                            num_ep += 1
+                        timing[i] = time.time() - start_time
+                    # check the softsubsetted model on validation set
+                    model.eval()
+                    with torch.no_grad():
+                        final_val_predictions = []
+                        final_val_classifications = []
+                        for batch_idx, (inputs, targets) in enumerate(valloader):
+                            inputs, targets = inputs.to(device), targets.to(
+                                device, non_blocking=True
+                            )
+                            outputs = model(inputs)
+                            loss = criterion(outputs, targets)
+                            val_loss += loss.item()
+                            _, predicted = outputs.max(1)
+                            val_total += targets.size(0)
+                            val_correct += predicted.eq(targets).sum().item()
+                            final_val_predictions += list(predicted.cpu().numpy())
+                            final_val_classifications += list(
+                                predicted.eq(targets).cpu().numpy()
+                            )
+
+                        final_tst_predictions = []
+                        final_tst_classifications = []
+                        for batch_idx, (inputs, targets) in enumerate(tstloader):
+                            inputs, targets = inputs.to(device), targets.to(
+                                device, non_blocking=True
+                            )
+                            outputs = model(inputs)
+                            loss = criterion(outputs, targets)
+                            tst_loss += loss.item()
+                            _, predicted = outputs.max(1)
+                            tst_total += targets.size(0)
+                            tst_correct += predicted.eq(targets).sum().item()
+                            final_tst_predictions += list(predicted.cpu().numpy())
+                            final_tst_classifications += list(
+                                predicted.eq(targets).cpu().numpy()
+                            )
+
+                        # just display the results
+                        find_err_per_class(
+                            test_set,
+                            val_set,
+                            final_val_classifications,
+                            final_val_predictions,
+                            final_tst_classifications,
+                            final_tst_predictions,
+                            all_logs_dir,
+                            sf + "_" + str(bud),
+                            True,
+                        )
+                    # update the model for original strategy_sel after softsubsetting
+                    strategy_sel.update_model(model)
+                else:
+                    print(
+                        "Not doing softsubsetting for strategy "
+                        + sf
+                        + "For the AL round "
+                        + str(i)
+                    )
+
             ####SIM####
-            if strategy == "SIM" or strategy == "SF":
-                if sf.endswith("mi"):
-                    if feature == "classimb":
-                        # make a dataloader for the misclassifications - only for experiments with targets
-                        for_query_set = getQuerySet(
-                            ConcatWithTargets(train_set, val_set), sel_cls_idx
-                        )
-                        strategy_sel.update_queries(for_query_set)
+            if (
+                strategy == "SIM"
+                or strategy == "SIM_WITHSOFT"
+                or strategy == "WASSAL"
+                or strategy == "WASSAL_WITHSOFT"
+            ):
+                # make a dataloader for the misclassifications - only for experiments with targets
+                for_query_set = getQuerySet(train_set, sel_cls_idx)
+                print("updating queryset for strategy " + sf)
+                strategy_sel.update_queries(for_query_set)
 
-                        print("size of query set", len(for_query_set))
-            # if SIM_WITHSOFT
-            if strategy == "SIM_WITHSOFT":
-                if sf.endswith("mi"):
-                    if feature == "classimb":
-                        # make a dataloader for the misclassifications - only for experiments with targets
-                        for_query_set = getQuerySet(
-                            ConcatWithTargets(train_set, val_set), sel_cls_idx
-                        )
-                        strategy_softsubset.update_queries(for_query_set)
-                        strategy_sel.update_queries(for_query_set)
-
-                        print("size of query set", len(for_query_set))
+                print("size of query set", len(for_query_set))
             # if SCMI_WITHSOFT
-            if strategy == "SCMI_WITHSOFT":
+            if (
+                strategy == "SCMI_WITHSOFT"
+                or strategy == "SCMI"
+                or strategy == "WASSAL_P"
+                or strategy == "WASSAL_P_WITHSOFT"
+            ):
                 if sf.endswith("mi"):
                     if feature == "classimb":
                         # make a dataloader for the misclassifications - only for experiments with targets
-                        for_query_set = getQuerySet(
-                            ConcatWithTargets(train_set, val_set), sel_cls_idx
-                        )
-                        for_private_set = getPrivateSet(
-                            ConcatWithTargets(train_set, val_set), sel_cls_idx
-                        )
-                        strategy_softsubset.update_queries(for_query_set)
-                        strategy_softsubset.update_privates(for_private_set)
+                        for_query_set = getQuerySet(train_set, sel_cls_idx)
+                        for_private_set = getPrivateSet(train_set, sel_cls_idx)
+                        print("updating queryset for strategy " + sf)
                         strategy_sel.update_queries(for_query_set)
                         strategy_sel.update_privates(for_private_set)
 
                         print("size of query set", len(for_query_set))
             # if AL_WITHSOFT
-            if strategy == "AL_WITHSOFT":
+            if strategy == "AL_WITHSOFT" or strategy == "AL":
                 if sf == "glister-tss" or sf == "gradmatch-tss":
-                    for_query_set = getQuerySet(
-                        ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
-                    )
-                    strategy_softsubset.update_queries(for_query_set)
+                    for_query_set = getQuerySet(train_set, sel_cls_idx, recipe="asis")
+                    print("updating queryset for strategy " + sf)
                     strategy_sel.update_queries(for_query_set)
-                    print("size of query set", len(for_query_set))
-                else:
-                    for_query_set = getQuerySet(
-                        ConcatWithTargets(train_set, val_set), sel_cls_idx, recipe="asis"
-                    )
-                    strategy_softsubset.update_queries(for_query_set)
 
                     print("size of query set", len(for_query_set))
 
-            if strategy == "AL":
-                if sf == "glister-tss" or sf == "gradmatch-tss":
-                    miscls_set = getQuerySet(
-                        ConcatWithTargets(train_set, val_set), sel_cls_idx
-                    )
-                    strategy_sel.update_queries(miscls_set)
-                    print("reinit AL with targeted miscls samples")
+            print("Selecing AL data for strategy " + sf)
+            if strategy == "WASSAL" or strategy == "WASSAL_WITHSOFT":
+                # already selection would have happened just get the subset for now
+                classwise_final_indices_simplex_temp = strategy_sel.select(budget)
 
-            if strategy == "WASSAL" or strategy == "WASSAL_SOFT":
-                # concatina the train and val sets
-                for_query_set = getQuerySet(
-                    ConcatWithTargets(train_set, val_set), sel_cls_idx
-                )
-                strategy_sel.update_queries(for_query_set)
-                print("size of query set", len(for_query_set))
-            elif strategy == "WASSAL_P":
-                # concatina the train and val sets
-                for_query_set = getQuerySet(
-                    ConcatWithTargets(train_set, val_set), sel_cls_idx
-                )
-                for_private_set = getPrivateSet(
-                    ConcatWithTargets(train_set, val_set), sel_cls_idx
-                )
-                strategy_sel.update_queries(for_query_set)
-                strategy_sel.update_privates(for_private_set)
-                print("size of query set", len(for_query_set))
-            elif strategy == "SCMI":
-                # concatina the train and val sets
-                for_query_set = getQuerySet(
-                    ConcatWithTargets(train_set, val_set), sel_cls_idx
-                )
-                for_private_set = getPrivateSet(
-                    ConcatWithTargets(train_set, val_set), sel_cls_idx
-                )
-
-                strategy_sel.update_queries(for_query_set)
-                strategy_sel.update_privates(for_private_set)
-
-                print("size of query set", len(for_query_set))
-
-            if strategy == "WASSAL" or strategy == "WASSAL_SOFT":
-                classwise_final_indices_simplex = strategy_sel.select(budget)
-               
                 subset = []
                 for (
                     selected_indices,
                     simplex_query,
                     simplex_refrain,
                     class_idx,
-                ) in classwise_final_indices_simplex:
+                ) in classwise_final_indices_simplex_temp:
                     subset += selected_indices
-                classwise_final_indices_simplex_cpu = [
-                    (
-                        indicex,
-                        tensor1.clone().cpu().detach(),
-                        tensor2.clone().cpu().detach(),
-                        class_idx,
-                    )
-                    for (
-                        indicex,
-                        tensor1,
-                        tensor2,
-                        class_idx,
-                    ) in classwise_final_indices_simplex
-                ]
-                plotsimpelxDistribution(lake_set, classwise_final_indices_simplex_cpu)
-                # analyze_simplex(temp_args,lake_set,simplex_query)
-            elif strategy == "WASSAL_P":
-                subset, simplex_query, simplex_private = strategy_sel.select(budget)
-                temp_args = {}
-                temp_args["device"] = device
-                temp_args["target"] = sel_cls_idx
-                # analyze_simplex(temp_args,lake_set,simplex_query)
-            elif strategy == "SCMI_WITHSOFT":
-                (
-                    softsubset,
-                    soft_simplex_query,
-                    soft_simplex_private,
-                ) = strategy_softsubset.select(budget)
-                subset = strategy_sel.select(budget)
-            elif strategy == "SMI_WITHSOFT" or strategy == "AL_WITHSOFT":
-                classwise_final_indices_simplex = strategy_softsubset.select(budget)
-                # clone the tensors to cpu for visualization
-                classwise_final_indices_simplex_cpu = [
-                    (
-                        indicex,
-                        tensor1.clone().cpu().detach(),
-                        tensor2.clone().cpu().detach(),
-                        class_idx,
-                    )
-                    for (
-                        indicex,
-                        tensor1,
-                        tensor2,
-                        class_idx,
-                    ) in classwise_final_indices_simplex
-                ]
 
-                plotsimpelxDistribution(lake_set, classwise_final_indices_simplex_cpu)
-                subset = strategy_sel.select(budget)
+                # analyze_simplex(temp_args,lake_set,simplex_query)
+            elif strategy == "WASSAL_P" or strategy == "WASSAL_P_WITHSOFT":
+                subset, simplex_query, simplex_private = strategy_sel.select(budget)
+
+            # for other strategies simple to get subset
             else:
                 subset = strategy_sel.select(budget)
 
-            print("#### Selection Complete, Now re-training with augmented subset ####")
+            lake_subset_idxs = (
+                subset  # indices wrt to lake that need to be removed from the lake
+            )
+
+            perClsSel = getPerClassSel(true_lake_set, lake_subset_idxs, num_cls)
+            res_dict["sel_per_cls"].append(perClsSel)
+
             if visualize_tsne:
                 tsne_plt = tsne_smi(
                     strategy_sel.unlabeled_data_embedding.cpu(),
@@ -1153,449 +1307,9 @@ def run_targeted_selection(
                     subset,
                 )
                 print("Computed TSNE plot of the selection")
-            lake_subset_idxs = (
-                subset  # indices wrt to lake that need to be removed from the lake
-            )
-            perClsSel = getPerClassSel(true_lake_set, lake_subset_idxs, num_cls)
-            res_dict["sel_per_cls"].append(perClsSel)
 
-            # if SCMI_WITHSOFT do a softsubsetted training before AL training
-            if strategy == "SCMI_WITHSOFT":
-                print("Softsubsetting for SCMI functions  using WASSAL_P")
-                # Extract images and targets from weighted_lake_set
-                images = [lake_set[i][0] for i in range(len(lake_set))]
-                targets = torch.tensor(sel_cls_idx[0])
-                targets = targets.repeat(len(lake_set) // len(sel_cls_idx))
-                private_targets = torch.tensor(0)
-                private_targets = private_targets.repeat(
-                    len(lake_set) // len(sel_cls_idx)
-                )
-                sofftsimplex_query = soft_simplex_query.detach().cpu().numpy()
-                sofftsimplex_private = soft_simplex_private.detach().cpu().numpy()
-                # choose the top simplex_query that contributes 30% to the total simplex_query
-                _, top_n_indices = top_elements_contribute_to_percentage(
-                    sofftsimplex_query, ss_max_budget
-                )
-                _, top_n_private_indices = top_elements_contribute_to_percentage(
-                    sofftsimplex_private, ss_max_budget
-                )
-                small_images = [images[i] for i in top_n_indices]
-                small_targets = targets[top_n_indices.copy()]
-                small_simplex_query = sofftsimplex_query[top_n_indices]
-                small_private_targets = private_targets[top_n_private_indices.copy()]
-                small_simplex_private = sofftsimplex_private[top_n_private_indices]
-                weighted_lake_set = WeightedDataset(
-                    small_images,
-                    small_targets,
-                    small_simplex_query,
-                    small_private_targets,
-                    small_simplex_private,
-                )
+            print("#### Selection Complete, Now re-training with augmented subset ####")
 
-                # load weighted_lakset into a weighted dataloader
-                weighted_lakeloader = torch.utils.data.DataLoader(
-                    weighted_lake_set,
-                    batch_size=trn_batch_size,
-                    shuffle=False,
-                    pin_memory=True,
-                )
-
-                # start training
-                print(
-                    "starting weighted training for {} with hypothesized labels:"
-                    + str(sel_cls_idx),
-                    strategy,
-                )
-                start_time = time.time()
-                num_ep = 1
-                while full_trn_acc[i] < 0.99 and num_ep < 100:
-                    model.train()
-                    for batch_idx, (
-                        inputs,
-                        targets,
-                        simplex_query,
-                        private_targets,
-                        simplex_private,
-                    ) in enumerate(weighted_lakeloader):
-                        # Variables in Pytorch are differentiable.
-                        inputs = inputs.to(device)
-                        targets = targets.to(device)
-                        private_targets = private_targets.to(device)
-                        simplex_query = simplex_query.to(device)
-                        simplex_private = simplex_private.to(device)
-                        # This will zero out the gradients for this batch.
-                        optimizer.zero_grad()
-                        outputs = model(inputs)
-                        target_loss_per_sample = criterion(outputs, targets)
-                        private_loss_per_sample = criterion(outputs, private_targets)
-                        loss = (simplex_query * target_loss_per_sample).sum() + (
-                            simplex_private * private_loss_per_sample
-                        ).sum()
-                        loss.backward()
-                        optimizer.step()
-
-                    full_trn_loss = 0
-                    full_trn_correct = 0
-                    full_trn_total = 0
-                    model.eval()
-                    with torch.no_grad():
-                        for batch_idx, (
-                            inputs,
-                            targets,
-                            simplex_query,
-                            private_targets,
-                            simplex_private,
-                        ) in enumerate(weighted_lakeloader):
-                            # Variables in Pytorch are differentiable.
-                            inputs = inputs.to(device)
-                            targets = targets.to(device)
-                            private_targets = private_targets.to(device)
-                            simplex_query = simplex_query.to(device)
-                            simplex_private = simplex_private.to(device)
-                            # This will zero out the gradients for this batch.
-                            optimizer.zero_grad()
-                            outputs = model(inputs)
-                            target_loss_per_sample = criterion(outputs, targets)
-                            private_loss_per_sample = criterion(
-                                outputs, private_targets
-                            )
-                            loss = (simplex_query * target_loss_per_sample).sum() + (
-                                simplex_private * private_loss_per_sample
-                            ).sum()
-                            full_trn_loss += loss.item()
-                            _, predicted = outputs.max(1)
-                            full_trn_total += targets.size(0)
-                            full_trn_correct += predicted.eq(targets).sum().item()
-                        full_trn_acc[i] = full_trn_correct / full_trn_total
-                        print(
-                            "Selection Epoch ",
-                            i,
-                            " Training epoch [",
-                            num_ep,
-                            "]",
-                            " Training Acc: ",
-                            full_trn_acc[i],
-                            end="\r",
-                        )
-                        num_ep += 1
-                    timing[i] = time.time() - start_time
-
-            if (
-                strategy == "SMI_WITHSOFT"
-                or strategy == "AL_WITHSOFT"
-                or strategy == "WASSAL_SOFT"
-            ):
-                print("Softsubsetting  for strategy: " + sf)
-                # Aggregation lists
-                all_small_images = []
-                all_small_targets = []
-                all_small_simplex_query = []
-                all_small_refrain_images = []
-                all_small_refrain_targets = []
-                all_small_simplex_refrain = []
-
-                for (
-                    sel_cls_idx_temp,
-                    simplex_query,
-                    simplex_refrain,
-                    class_idx,
-                ) in classwise_final_indices_simplex:
-                    # Extract images and targets from weighted_lake_set
-                    images = [lake_set[i][0] for i in range(len(lake_set))]
-                    targets = torch.tensor(class_idx)
-                    targets_refrain = torch.tensor(class_idx)
-                    targets = targets.repeat(len(lake_set))
-                    targets_refrain = targets_refrain.repeat(len(lake_set))
-                    sofftsimplex_query = simplex_query.detach().cpu().numpy()
-                    softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
-                    # choose the top simplex_query that contributes 30% to the size of that class in trainset
-                    _, top_n_indices = top_elements_contribute_to_percentage(
-                        sofftsimplex_query, ss_max_budget,getHigheestClassNumber(trainset)*2
-                    )
-
-                   
-                    _, top_n_refrain_indices = top_elements_contribute_to_percentage(
-                        softsimplex_refrain, ss_max_budget, getHigheestClassNumber(trainset)
-                    )
-
-                    # Collect the data
-                    all_small_images += [images[i] for i in top_n_indices]
-                    all_small_refrain_images += [
-                        images[i] for i in top_n_refrain_indices
-                    ]
-                    all_small_targets += targets[top_n_indices.copy()].tolist()
-                    all_small_refrain_targets += targets_refrain[
-                        top_n_refrain_indices.copy()
-                    ].tolist()
-                    softsimplex_query_normed = (
-                        sofftsimplex_query[top_n_indices]
-                        / (sofftsimplex_query[top_n_indices].sum())
-                    )
-                    all_small_simplex_query += softsimplex_query_normed.tolist()
-                    softsimplex_refrain_normed = (
-                        softsimplex_refrain[top_n_refrain_indices]
-                        / (softsimplex_refrain[top_n_refrain_indices].sum())
-                    )
-                    all_small_simplex_refrain += softsimplex_query_normed.tolist()
-
-                # Convert lists to tensors
-                all_small_targets = torch.tensor(all_small_targets)
-                all_small_refrain_targets = torch.tensor(all_small_refrain_targets)
-                all_small_simplex_query = torch.tensor(all_small_simplex_query)
-                all_small_simplex_refrain = torch.tensor(all_small_simplex_refrain)
-
-                # Form the combined weighted dataset
-                weighted_lake_set = WeightedDataset(
-                    all_small_images,
-                    all_small_targets,
-                    all_small_simplex_query,
-                    None,
-                    None,
-                )
-                weighted_refrain_lake_set = WeightedDataset(
-                    all_small_refrain_images,
-                    all_small_refrain_targets,
-                    all_small_simplex_refrain,
-                    None,
-                    None,
-                )
-
-                # Load into a dataloader
-                weighted_lakeloader = torch.utils.data.DataLoader(
-                    weighted_lake_set,
-                    batch_size=len(weighted_lake_set),
-                    shuffle=True,
-                    pin_memory=True,
-                )
-                weighted_refrain_lakeloader = torch.utils.data.DataLoader(
-                    weighted_refrain_lake_set,
-                    batch_size=len(weighted_refrain_lake_set),
-                    shuffle=True,
-                    pin_memory=True,
-                )
-
-                # start training
-                print("starting weighted training for " + sf)
-                start_time = time.time()
-                num_ep = 1
-                sft_trn_acc = 0.0
-                while sft_trn_acc < 0.99 and num_ep < 100:
-                    model.train()
-                    loss = 0.0
-
-                    # firs negate refrains
-                    # for batch_idx, (inputs, targets,simplex_refrain,_,_) in enumerate(weighted_refrain_lakeloader):
-                    #     # Variables in Pytorch are differentiable.
-                    #     inputs = inputs.to(device)
-                    #     targets = targets.to(device)
-
-                    #     simplex_refrain=simplex_query.to(device)
-                    #     # This will zero out the gradients for this batch.
-
-                    #     outputs = model(inputs)
-                    #     target_loss_per_sample=criterion(outputs, targets)
-                    #     loss -= (simplex_query*target_loss_per_sample).sum()
-
-                    for batch_idx, (inputs, targets, simplex_query, _, _) in enumerate(
-                        weighted_lakeloader
-                    ):
-                        # Variables in Pytorch are differentiable.
-                        inputs = inputs.to(device)
-                        targets = targets.to(device)
-                        # normalize simplex_query
-
-                        simplex_query = simplex_query.to(device)
-                        # This will zero out the gradients for this batch.
-                        optimizer.zero_grad()
-                        outputs = model(inputs)
-                        target_loss_per_sample = criterion(outputs, targets)
-                        loss += (simplex_query * target_loss_per_sample).sum()
-                        # loss=target_loss_per_sample.sum()
-                        loss.backward()
-                        optimizer.step()
-                    full_trn_loss = 0
-                    full_trn_correct = 0
-                    full_trn_total = 0
-                    model.eval()
-                    loss = 0.0
-                    sft_trn_acc = 0.0
-                    with torch.no_grad():
-                        # for batch_idx, (inputs, targets,simplex_refrain,_,_) in enumerate(weighted_refrain_lakeloader):
-                        #     # Variables in Pytorch are differentiable.
-                        #     inputs = inputs.to(device)
-                        #     targets = targets.to(device)
-
-                        #     simplex_refrain=simplex_refrain.to(device)
-                        #     # This will zero out the gradients for this batch.
-                        #     optimizer.zero_grad()
-                        #     outputs = model(inputs)
-                        #     loss -= criterion(outputs, targets)
-
-                        for batch_idx, (
-                            inputs,
-                            targets,
-                            simplex_query,
-                            _,
-                            _,
-                        ) in enumerate(weighted_lakeloader):
-                            inputs, targets, simplex_query = (
-                                inputs.to(device),
-                                targets.to(device, non_blocking=True),
-                                simplex_query.to(device),
-                            )
-                            outputs = model(inputs)
-                            loss = criterion(outputs, targets)
-                            # check
-                            # full_trn_loss += loss.sum().item()
-                            full_trn_loss += loss.sum().item()
-                            _, predicted = outputs.max(1)
-                            full_trn_total += targets.size(0)
-                            full_trn_correct += predicted.eq(targets).sum().item()
-                        sft_trn_acc = full_trn_correct / full_trn_total
-                        print(
-                            "Selection Epoch ",
-                            i,
-                            " Training epoch [",
-                            num_ep,
-                            "]",
-                            " Training Acc: ",
-                            sft_trn_acc,
-                            end="\r",
-                        )
-                        num_ep += 1
-                    timing[i] = time.time() - start_time
-
-            # if WASSAL_P   do a softsubsetted training with query and private before AL training
-            elif strategy == "WASSAL_P":
-                # label all the samples in the lake with the hypothesized labels of target classes and do weighted training of simplex_query
-                softSubbudget = 10
-                # Extract images and targets from weighted_lake_set
-                images = [lake_set[i][0] for i in range(len(lake_set))]
-                targets = torch.tensor(sel_cls_idx[0])
-                targets = targets.repeat(len(lake_set) // len(sel_cls_idx))
-                private_targets = torch.tensor(0)
-                private_targets = private_targets.repeat(
-                    len(lake_set) // len(sel_cls_idx)
-                )
-
-                # just take the top 10 based on sorted simplex_query
-                simplex_query = simplex_query.detach().cpu().numpy()
-                _, top_n_indices = top_elements_contribute_to_percentage(
-                    simplex_query, ss_max_budget
-                )
-                simplex_private = simplex_private.detach().cpu().numpy()
-                _, top_n_private_indices = top_elements_contribute_to_percentage(
-                    simplex_private, ss_max_budget
-                )
-                # # Get the indices that would sort the array in descending order
-                # sorted_indices = simplex_query.argsort()[::-1]
-                # # Extract the top n indices
-                # #top_n_indices = sorted_indices[budget+1:n*2]
-                # top_n_indices = sorted_indices[:softSubbudget]
-                # Reorder images and targets based on these indices
-                small_images = [images[i] for i in top_n_indices]
-                small_targets = targets[top_n_indices.copy()]
-                small_private_targets = private_targets[top_n_private_indices.copy()]
-                # Update simplex_query to only contain top n values
-                small_simplex_query = simplex_query[top_n_indices]
-                small_simplex_private = simplex_private[top_n_private_indices]
-
-                weighted_lake_set = WeightedDataset(
-                    small_images,
-                    small_targets,
-                    small_simplex_query,
-                    small_private_targets,
-                    small_simplex_private,
-                )
-
-                # load weighted_lakset into a weighted dataloader
-                weighted_lakeloader = torch.utils.data.DataLoader(
-                    weighted_lake_set,
-                    batch_size=trn_batch_size,
-                    shuffle=False,
-                    pin_memory=True,
-                )
-
-                # start training
-                print(
-                    "starting weighted training for WASSAL_P with hypothesized labels:"
-                    + str(sel_cls_idx)
-                )
-                start_time = time.time()
-                num_ep = 1
-                while full_trn_acc[i] < 0.99 and num_ep < 100:
-                    model.train()
-                    for batch_idx, (
-                        inputs,
-                        targets,
-                        simplex_query,
-                        private_targets,
-                        simplex_private,
-                    ) in enumerate(weighted_lakeloader):
-                        # Variables in Pytorch are differentiable.
-                        inputs = inputs.to(device)
-                        targets = targets.to(device)
-                        private_targets = private_targets.to(device)
-                        simplex_query = simplex_query.to(device)
-                        simplex_private = simplex_private.to(device)
-                        # This will zero out the gradients for this batch.
-                        optimizer.zero_grad()
-                        outputs = model(inputs)
-                        target_loss_per_sample = criterion(outputs, targets)
-                        private_loss_per_sample = criterion(outputs, private_targets)
-                        loss = (simplex_query * target_loss_per_sample).sum() + (
-                            simplex_private * private_loss_per_sample
-                        ).sum()
-                        loss.backward()
-                        optimizer.step()
-
-                    full_trn_loss = 0
-                    full_trn_correct = 0
-                    full_trn_total = 0
-                    model.eval()
-                    with torch.no_grad():
-                        for batch_idx, (
-                            inputs,
-                            targets,
-                            simplex_query,
-                            private_targets,
-                            simplex_private,
-                        ) in enumerate(weighted_lakeloader):
-                            # Variables in Pytorch are differentiable.
-                            inputs = inputs.to(device)
-                            targets = targets.to(device)
-                            private_targets = private_targets.to(device)
-                            simplex_query = simplex_query.to(device)
-                            simplex_private = simplex_private.to(device)
-                            # This will zero out the gradients for this batch.
-                            optimizer.zero_grad()
-                            outputs = model(inputs)
-                            target_loss_per_sample = criterion(outputs, targets)
-                            private_loss_per_sample = criterion(
-                                outputs, private_targets
-                            )
-                            loss = (simplex_query * target_loss_per_sample).sum() + (
-                                simplex_private * private_loss_per_sample
-                            ).sum()
-                            full_trn_loss += loss.item()
-                            _, predicted = outputs.max(1)
-                            full_trn_total += targets.size(0)
-                            full_trn_correct += predicted.eq(targets).sum().item()
-                        full_trn_acc[i] = full_trn_correct / full_trn_total
-                        print(
-                            "Selection Epoch ",
-                            i,
-                            " Training epoch [",
-                            num_ep,
-                            "]",
-                            " Training Acc: ",
-                            full_trn_acc[i],
-                            end="\r",
-                        )
-                        num_ep += 1
-                    timing[i] = time.time() - start_time
-
-            print("starting AL training for: " + sf)
             # augment the train_set with selected indices from the lake
             train_set, lake_set, true_lake_set, add_val_set = aug_train_subset(
                 train_set,
@@ -1625,91 +1339,96 @@ def run_targeted_selection(
             # model = create_model(model_name, num_cls, device, strategy_args['embedding_type'])
             # optimizer = optimizer_without_scheduler(model, learning_rate)
 
-        # Start training
-        start_time = time.time()
-        num_ep = 1
-        #         while(num_ep<150):
-        # first train until full training accuracy is 0.99
-        while full_trn_acc[i] < 0.99 and num_ep < 100:
-            model.train()
-            for batch_idx, (inputs, targets) in enumerate(trainloader):
-                inputs, targets = inputs.to(device), targets.to(
-                    device, non_blocking=True
-                )
-                # Variables in Pytorch are differentiable.
-                inputs, target = Variable(inputs), Variable(inputs)
-                # This will zero out the gradients for this batch.
-                optimizer.zero_grad()
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
-                loss.backward()
-                optimizer.step()
-            #             scheduler.step()
+            # Start training
+            start_time = time.time()
+            num_ep = 1
+            #         while(num_ep<150):
+            # first train until full training accuracy is 0.99
+            while full_trn_acc[i] < 0.99 and num_ep < 100:
+                model.train()
+                for batch_idx, (inputs, targets) in enumerate(trainloader):
+                    inputs, targets = inputs.to(device), targets.to(
+                        device, non_blocking=True
+                    )
+                    # Variables in Pytorch are differentiable.
+                    inputs, target = Variable(inputs), Variable(inputs)
+                    # This will zero out the gradients for this batch.
+                    optimizer.zero_grad()
+                    outputs = model(inputs)
+                    loss = criterion(outputs, targets)
+                    loss.backward()
+                    optimizer.step()
+                #             scheduler.step()
 
-            full_trn_loss = 0
-            full_trn_correct = 0
-            full_trn_total = 0
-            model.eval()
+                full_trn_loss = 0
+                full_trn_correct = 0
+                full_trn_total = 0
+                model.eval()
+                with torch.no_grad():
+                    for batch_idx, (inputs, targets) in enumerate(
+                        trainloader
+                    ):  # Compute Train accuracy
+                        inputs, targets = inputs.to(device), targets.to(
+                            device, non_blocking=True
+                        )
+                        outputs = model(inputs)
+                        loss = criterion(outputs, targets)
+                        full_trn_loss += loss.item()
+                        _, predicted = outputs.max(1)
+                        full_trn_total += targets.size(0)
+                        full_trn_correct += predicted.eq(targets).sum().item()
+                    full_trn_acc[i] = full_trn_correct / full_trn_total
+                    print(
+                        "Selection Epoch ",
+                        i,
+                        " Training epoch [",
+                        num_ep,
+                        "]",
+                        " Training Acc: ",
+                        full_trn_acc[i],
+                        end="\r",
+                    )
+                    num_ep += 1
+                timing[i] = time.time() - start_time
+
             with torch.no_grad():
+                final_val_predictions = []
+                final_val_classifications = []
                 for batch_idx, (inputs, targets) in enumerate(
-                    trainloader
-                ):  # Compute Train accuracy
+                    valloader
+                ):  # Compute Val accuracy
                     inputs, targets = inputs.to(device), targets.to(
                         device, non_blocking=True
                     )
                     outputs = model(inputs)
                     loss = criterion(outputs, targets)
-                    full_trn_loss += loss.item()
+                    val_loss += loss.item()
                     _, predicted = outputs.max(1)
-                    full_trn_total += targets.size(0)
-                    full_trn_correct += predicted.eq(targets).sum().item()
-                full_trn_acc[i] = full_trn_correct / full_trn_total
-                print(
-                    "Selection Epoch ",
-                    i,
-                    " Training epoch [",
-                    num_ep,
-                    "]",
-                    " Training Acc: ",
-                    full_trn_acc[i],
-                    end="\r",
-                )
-                num_ep += 1
-            timing[i] = time.time() - start_time
-        with torch.no_grad():
-            final_val_predictions = []
-            final_val_classifications = []
-            for batch_idx, (inputs, targets) in enumerate(
-                valloader
-            ):  # Compute Val accuracy
-                inputs, targets = inputs.to(device), targets.to(
-                    device, non_blocking=True
-                )
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
-                val_loss += loss.item()
-                _, predicted = outputs.max(1)
-                val_total += targets.size(0)
-                val_correct += predicted.eq(targets).sum().item()
-                final_val_predictions += list(predicted.cpu().numpy())
-                final_val_classifications += list(predicted.eq(targets).cpu().numpy())
+                    val_total += targets.size(0)
+                    val_correct += predicted.eq(targets).sum().item()
+                    final_val_predictions += list(predicted.cpu().numpy())
+                    final_val_classifications += list(
+                        predicted.eq(targets).cpu().numpy()
+                    )
 
-            final_tst_predictions = []
-            final_tst_classifications = []
-            for batch_idx, (inputs, targets) in enumerate(
-                tstloader
-            ):  # Compute test accuracy
-                inputs, targets = inputs.to(device), targets.to(
-                    device, non_blocking=True
-                )
-                outputs = model(inputs)
-                loss = criterion(outputs, targets)
-                tst_loss += loss.item()
-                _, predicted = outputs.max(1)
-                tst_total += targets.size(0)
-                tst_correct += predicted.eq(targets).sum().item()
-                final_tst_predictions += list(predicted.cpu().numpy())
-                final_tst_classifications += list(predicted.eq(targets).cpu().numpy())
+                final_tst_predictions = []
+                final_tst_classifications = []
+                for batch_idx, (inputs, targets) in enumerate(
+                    tstloader
+                ):  # Compute test accuracy
+                    inputs, targets = inputs.to(device), targets.to(
+                        device, non_blocking=True
+                    )
+                    outputs = model(inputs)
+                    loss = criterion(outputs, targets)
+                    tst_loss += loss.item()
+                    _, predicted = outputs.max(1)
+                    tst_total += targets.size(0)
+                    tst_correct += predicted.eq(targets).sum().item()
+                    final_tst_predictions += list(predicted.cpu().numpy())
+                    final_tst_classifications += list(
+                        predicted.eq(targets).cpu().numpy()
+                    )
             val_acc[i] = val_correct / val_total
             tst_acc[i] = tst_correct / tst_total
             val_losses[i] = val_loss
@@ -1773,9 +1492,9 @@ def run_targeted_selection(
 
 # %%
 experiments = ["exp2", "exp3", "exp4", "exp5"]
-seeds = [24, 25, 26, 27, 28]
-budgets = [40, 50, 60, 70,80,90,100]
-#budgets = [24, 50, 74]
+seeds = [24, 48, 86, 28, 92]
+budgets = [40, 50, 60, 70, 80, 90, 100]
+# budgets = [90,100]
 device_id = 1
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
@@ -1849,22 +1568,22 @@ initModelPath = (
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
     # al soft
-    # ("WASSAL_SOFT", "WASSAL_SOFT"),
+    ("WASSAL_WITHSOFT", "WASSAL_WITHSOFT"),
     # ("WASSAL", "WASSAL"),
-    #("AL", "us"),
-    #("AL_WITHSOFT", "us_soft"),
-    # ("AL_WITHSOFT", "glister_soft"),
-    # ("AL_WITHSOFT", 'gradmatch-tss_soft'),
-    #("AL", "coreset"),
-    ("AL_WITHSOFT", "coreset_soft"),
+    ("AL", "glister"),
+    ("AL_WITHSOFT", "glister_withsoft"),
+    ("AL", "gradmatch-tss"),
+    ("AL_WITHSOFT", "gradmatch-tss_withsoft"),
+    ("AL", "coreset"),
+    ("AL_WITHSOFT", "coreset_withsoft"),
     ("AL", "leastconf"),
-    ("AL_WITHSOFT", "leastconf_soft"),
+    ("AL_WITHSOFT", "leastconf_withsoft"),
     ("AL", "margin"),
-    ("AL_WITHSOFT", "margin_soft"),
+    ("AL_WITHSOFT", "margin_withsoft"),
     ("random", "random"),
-    # ("AL", "badge"),
-    # ("AL", "glister"),
-    # ("AL", 'gradmatch-tss'),
+    ("AL", "badge"),
+    ("AL_WITHSOFT", "us_withsoft"),
+    ("AL", "us"),
 ]
 
 for i, experiment in enumerate(experiments):

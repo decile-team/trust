@@ -13,7 +13,7 @@ rounds=10
 #for pneumonia
 base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
-budgets=[40]
+budgets = [40, 50, 60, 70,80,90,100]
 filename = "output_statistics_pneumo_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
@@ -22,14 +22,14 @@ filename = "output_statistics_pneumo_vanilla"
 #strategy_group="AL"
 #strategies = ["WASSAL_P","random","logdetcmi","flcmi"]
 #strategy_group="withprivate"
-#strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi","fl1mi_soft", "fl2mi_soft", "gcmi_soft", "logdetmi_soft", "random","WASSAL_P","logdetcmi","flcmi","logdetcmi_soft","flcmi_soft"]
-#strategy_group="WASSAL_SOFT"
-#strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_soft","us_soft","glister_soft","coreset_soft","glister_soft","gradmatch-tss_soft","leastconf_soft","margin_soft"]
-strategies = ['us','us_soft','coreset','coreset_soft','leastconf','leastconf_soft','margin','margin_soft','random']
-strategy_group="AL_WITH_SOFT"
+#strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi","fl1mi_withsoft", "fl2mi_withsoft", "gcmi_withsoft", "logdetmi_withsoft", "random","WASSAL_P","logdetcmi","flcmi","logdetcmi_withsoft","flcmi_withsoft"]
+#strategy_group="WASSAL_withsoft"
+#strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_withsoft","us_withsoft","glister_withsoft","coreset_withsoft","glister_withsoft","gradmatch-tss_withsoft","leastconf_withsoft","margin_withsoft"]
+strategies = ['WASSAL_WITHSOFT','us','us_withsoft','coreset','coreset_withsoft','leastconf','leastconf_withsoft','margin','margin_withsoft','random']
+strategy_group="AL_WITHSOFT"
 
 #experiments=['exp1','exp2','exp3','exp4','exp5']
-experiments=['exp2']
+experiments=['exp1','exp2']
 
 # Prepare the CSV file for saving stats
 output_path = os.path.join(base_dir, filename+"_group_"+strategy_group+"_rounds_"+str(rounds))
