@@ -1141,7 +1141,7 @@ def run_targeted_selection(
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
                     weighted_lake_set,
-                    batch_size=len(weighted_lake_set),
+                    batch_size=4000,
                     shuffle=True,
                     pin_memory=True,
                 )
@@ -1369,7 +1369,7 @@ def run_targeted_selection(
 experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [100, 200, 300, 400, 500]
-device_id = 0
+device_id = 1
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
@@ -1459,7 +1459,7 @@ strategies = [
     ("AL", "badge_withsoft"),
     ("AL_WITHSOFT", "us_withsoft"),
     ("AL", "us"),
-    ("AL_WITHSOFT", "us"),
+   
 ]
 
 for i, experiment in enumerate(experiments):

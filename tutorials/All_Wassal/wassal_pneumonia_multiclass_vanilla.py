@@ -1355,8 +1355,8 @@ def run_targeted_selection(
 # %%
 experiments = ["exp2", "exp3", "exp4", "exp5"]
 seeds = [24, 48, 86, 28, 92]
-budgets = [40, 50, 60, 70, 80, 90, 100]
-# budgets = [90,100]
+#budgets = [40, 50, 60, 70, 80, 90, 100]
+budgets = [50, 60, 70, 80, 90, 100]
 device_id = 1
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
