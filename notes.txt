@@ -1,3 +1,6 @@
+/home/wassal/trust-wassal/tutorials/results/preserved4cvpr2024/roundsv110
+one complete run with 80%, budget*3, pretrainedresnet
+
 /home/wassal/trust-wassal/tutorials/results/archieve/vanilla_resnet50- 
 resnet50 for 2nd epoch, resnet18,AL model for all the epochs hence flawed. resnet50 also has confusion on embeddings
 soft versions where not doing good
