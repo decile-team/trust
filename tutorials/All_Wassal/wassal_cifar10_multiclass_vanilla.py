@@ -740,7 +740,7 @@ def run_targeted_selection(
         "min_iteration": 5,
     }
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
-    if "WITHSOFT" in strategy:
+    if "WITHSOFT" in strategy or strategy == "WASSAL":
         print("initaizing models for soft subset training")
         for_query_set = getQuerySet(train_set, sel_cls_idx, recipe="asis")
         #
@@ -972,7 +972,7 @@ def run_targeted_selection(
                 val_csvlog.append([100 - x for x in val_err_log])
 
             #update softsubset model and query if WITHSOFT
-            if "WITHSOFT" in strategy:
+            if "WITHSOFT" in strategy or strategy == "WASSAL":
                 print(
                     "Updating softsoft data, queryset and model for strategy " + sf,
                 )
