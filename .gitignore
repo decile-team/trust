@@ -1,5 +1,3 @@
-tutorials/All_Wassal/data/cifar-10-batches-py/batches.meta
-trust/__pycache__/__init__.cpython-310.pyc
 tutorials/results/*
 tutorials/All_Wassal/data/*
 trust/strategies/__pycache__/*
@@ -8,7 +6,6 @@ trust/utils/models/__pycache__/*
 tutorials/All_Wassal/wassal_pneumonia.py
 output_statistics.csv
 ALcurve.png
-.gitignore
 trust/strategies/wassal_multiclass.py
 cifar10_simplex_distribution_class_0.png
 cifar10_simplex_distribution_class_1.png
@@ -22,6 +19,8 @@ cifar10_simplex_distribution_class_8.png
 cifar10_simplex_distribution_class_9.png
 pneumo_simplex_distribution_class_0.png
 pneumo_simplex_distribution_class_1.png
-data/test_32x32.mat
-.gitignore
+data/*
+
 data/train_32x32.mat
+data/cifar-10-batches-py/batches.meta
+*.pyc
