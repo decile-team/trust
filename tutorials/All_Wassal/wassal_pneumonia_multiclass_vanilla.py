@@ -260,7 +260,7 @@ def aug_train_subset(
             remain_lake_idx,
             torch.Tensor(true_lake_set.targets.float())[remain_lake_idx],
         )
-    print(len(lake_ss), len(remain_lake_set), len(lake_set))
+    #print(len(lake_ss), len(remain_lake_set), len(lake_set))
     aug_train_set = ConcatWithTargets(train_set, lake_ss)
     aug_trainloader = torch.utils.data.DataLoader(
         train_set, batch_size=1000, shuffle=True, pin_memory=True
@@ -390,7 +390,7 @@ def getPerClassSel(lake_set, subset, num_cls):
 
 def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
     # Plot the distribution of the simplex query colorcoded based odn the true labels
-    for _, simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
+    for simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
         # Determine histogram bin edges
         counts, bin_edges = np.histogram(simplex_query, bins=10)
 
@@ -556,7 +556,7 @@ data_name = "pneumoniamnist"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 1
+device_id = 0
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -978,16 +978,16 @@ def run_targeted_selection(
                         + sf
                 )
     
-                classwise_final_indices_simplex = strategy_softsubset.select(budget)
+                subset,classwise_final_indices_simplex = strategy_softsubset.select(budget)
                 classwise_final_indices_simplex_cpu = [
                     (
-                        indicex,
+                       
                         tensor1.clone().cpu().detach(),
                         tensor2.clone().cpu().detach(),
                         class_idx,
                     )
                     for (
-                        indicex,
+                        
                         tensor1,
                         tensor2,
                         class_idx,
@@ -1001,25 +1001,25 @@ def run_targeted_selection(
                 
 
             #selecting subset using an AL strategy
-            subset = []
-            print("Selecing AL data for strategy " + sf)
-            if strategy == "WASSAL" or strategy == "WASSAL_WITHSOFT":
-                print('selecting subset as well for '+sf)
+            # subset = []
+            # print("Selecing AL data for strategy " + sf)
+            # if strategy == "WASSAL" or strategy == "WASSAL_WITHSOFT":
+            #     print('selecting subset as well for '+sf)
                 
-                for (
-                    selected_indices,
-                    simplex_query,
-                    simplex_refrain,
-                    class_idx,
-                ) in classwise_final_indices_simplex:
-                    subset += selected_indices
+            #     for (
+            #         selected_indices,
+            #         simplex_query,
+            #         simplex_refrain,
+            #         class_idx,
+            #     ) in classwise_final_indices_simplex:
+            #         subset += selected_indices
 
-                # analyze_simplex(temp_args,lake_set,simplex_query)
-            elif strategy == "WASSAL_P" or strategy == "WASSAL_P_WITHSOFT":
+            #     # analyze_simplex(temp_args,lake_set,simplex_query)
+            if strategy == "WASSAL_P" or strategy == "WASSAL_P_WITHSOFT":
                 subset, simplex_query, simplex_private = strategy_sel.select(budget)
 
             # for other strategies simple to get subset
-            else:
+            elif "WASSAL" not in strategy:
                 subset = strategy_sel.select(budget)
 
             lake_subset_idxs = (
@@ -1056,7 +1056,7 @@ def run_targeted_selection(
                 all_small_simplex_refrain = []
                 all_soft_selected_indices = []
                 for (
-                    sel_cls_idx_temp,
+                   
                     simplex_query,
                     simplex_refrain,
                     class_idx,
@@ -1355,9 +1355,9 @@ def run_targeted_selection(
 # %%
 experiments = ["exp2", "exp3", "exp4", "exp5"]
 seeds = [24, 48, 86, 28, 92]
-#budgets = [40, 50, 60, 70, 80, 90, 100]
-budgets = [50, 60, 70, 80, 90, 100]
-device_id = 1
+budgets = [40, 50, 60, 70, 80, 90, 100]
+#budgets = [100]
+device_id = 0
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
@@ -1430,24 +1430,24 @@ initModelPath = (
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
     # al soft
-    ("WASSAL_WITHSOFT", "WASSAL_WITHSOFT"),
     ("WASSAL", "WASSAL"),
-    ("AL", "glister"),
-    ("AL_WITHSOFT", "glister_withsoft"),
-    ("AL", "gradmatch-tss"),
-    ("AL_WITHSOFT", "gradmatch-tss_withsoft"),
-    ("AL", "coreset"),
-    ("AL_WITHSOFT", "coreset_withsoft"),
-    ("AL", "leastconf"),
-    ("AL_WITHSOFT", "leastconf_withsoft"),
-    ("AL", "margin"),
-    ("AL_WITHSOFT", "margin_withsoft"),
-    ("random", "random"),
-    ("AL", "badge"),
-    ("AL", "badge_withsoft"),
-    ("AL_WITHSOFT", "us_withsoft"),
-    ("AL", "us"),
-    ("AL_WITHSOFT", "us"),
+    ("WASSAL_WITHSOFT", "WASSAL_WITHSOFT"),
+    # ("AL", "glister"),
+    # ("AL_WITHSOFT", "glister_withsoft"),
+    # ("AL", "gradmatch-tss"),
+    # ("AL_WITHSOFT", "gradmatch-tss_withsoft"),
+    # ("AL", "coreset"),
+    # ("AL_WITHSOFT", "coreset_withsoft"),
+    # ("AL", "leastconf"),
+    # ("AL_WITHSOFT", "leastconf_withsoft"),
+    # ("AL", "margin"),
+    # ("AL_WITHSOFT", "margin_withsoft"),
+    # ("random", "random"),
+    # ("AL", "badge"),
+    # ("AL", "badge_withsoft"),
+    # ("AL_WITHSOFT", "us_withsoft"),
+    # ("AL", "us"),
+    # ("AL_WITHSOFT", "us"),
 ]
 
 for i, experiment in enumerate(experiments):

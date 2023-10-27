@@ -385,7 +385,7 @@ def getPerClassSel(lake_set, subset, num_cls):
 
 def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
     # Plot the distribution of the simplex query colorcoded based on the true labels
-    for _, simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
+    for simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
         # Determine histogram bin edges
         counts, bin_edges = np.histogram(simplex_query, bins=10)
 
@@ -992,16 +992,16 @@ def run_targeted_selection(
                         + sf
                 )
     
-                classwise_final_indices_simplex = strategy_softsubset.select(budget)
+                subset,classwise_final_indices_simplex = strategy_softsubset.select(budget)
                 classwise_final_indices_simplex_cpu = [
                     (
-                        indicex,
+                        
                         tensor1.clone().cpu().detach(),
                         tensor2.clone().cpu().detach(),
                         class_idx,
                     )
                     for (
-                        indicex,
+                       
                         tensor1,
                         tensor2,
                         class_idx,
@@ -1015,25 +1015,25 @@ def run_targeted_selection(
                 
 
             #selecting subset using an AL strategy
-            subset = []
-            print("Selecing AL data for strategy " + sf)
-            if strategy == "WASSAL" or strategy == "WASSAL_WITHSOFT":
-                print('selecting subset as well for '+sf)
+            # subset = []
+            # print("Selecing AL data for strategy " + sf)
+            # if strategy == "WASSAL" or strategy == "WASSAL_WITHSOFT":
+            #     print('selecting subset as well for '+sf)
                 
-                for (
-                    selected_indices,
-                    simplex_query,
-                    simplex_refrain,
-                    class_idx,
-                ) in classwise_final_indices_simplex:
-                    subset += selected_indices
+            #     for (
+            #         selected_indices,
+            #         simplex_query,
+            #         simplex_refrain,
+            #         class_idx,
+            #     ) in classwise_final_indices_simplex:
+            #         subset += selected_indices
 
-                # analyze_simplex(temp_args,lake_set,simplex_query)
-            elif strategy == "WASSAL_P" or strategy == "WASSAL_P_WITHSOFT":
+            #     # analyze_simplex(temp_args,lake_set,simplex_query)
+            if strategy == "WASSAL_P" or strategy == "WASSAL_P_WITHSOFT":
                 subset, simplex_query, simplex_private = strategy_sel.select(budget)
 
             # for other strategies simple to get subset
-            else:
+            elif "WASSAL" not in strategy:
                 subset = strategy_sel.select(budget)
 
             lake_subset_idxs = (
@@ -1070,7 +1070,7 @@ def run_targeted_selection(
                 all_small_simplex_refrain = []
                 all_soft_selected_indices = []
                 for (
-                    sel_cls_idx_temp,
+                    
                     simplex_query,
                     simplex_refrain,
                     class_idx,
@@ -1141,7 +1141,7 @@ def run_targeted_selection(
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
                     weighted_lake_set,
-                    batch_size=4000,
+                    batch_size=3000,
                     shuffle=True,
                     pin_memory=True,
                 )

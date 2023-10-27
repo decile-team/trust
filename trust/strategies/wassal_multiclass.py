@@ -292,33 +292,47 @@ class WASSAL_Multiclass(Strategy):
 
         # This list will store the desired tuples
         output = []
-         # Plotting the distribution of the simplexes before returning the output
-        #plt.figure(figsize=(15, 10))
-        classwisebudget=budget//self.num_classes
-        # Iterate over the keys and values in the label_to_simplex_query dictionary
+       
+        
+        # Merge all masked_simplex_query tensors
+        merged_simplex = torch.cat([self.classwise_simplex_query[i].detach().cpu() for i in range(self.num_classes)])
+
+        # Find non-zero elements and sort them in ascending order
+        non_zero_indices = torch.nonzero(merged_simplex).squeeze()
+        sorted_indices = torch.argsort(merged_simplex[non_zero_indices], descending=False).cpu().numpy().tolist()
+        # Convert sorted indices to original indices
+        original_indices = [idx % len(self.unlabeled_dataset) for idx in sorted_indices]
+        #select unqiue indices unti budget is reached
+        selected_indices = []
         selected_indices_set = set()
+        for idx in original_indices:
+            if len(selected_indices) >= budget:
+                break
+            if idx not in selected_indices_set:
+                selected_indices.append(idx)
+                selected_indices_set.add(idx)
+
+        
+        
+
         for iteridx,(class_idx, simplex_query) in enumerate(self.label_to_simplex_query.items()):
             
             # Get values from simplex_query and plot them
             #plt.hist(simplex_values, bins=np.linspace(0, max(simplex_values), 50), alpha=0.5, label=f'Class {class_idx}')
             
-            # Get indices sorted in descending order based on simplex_query values
-            sorted_indices = torch.argsort(simplex_query).cpu().numpy().tolist()
-            # Filter out indices that have already been selected
-            sorted_indices = [idx for idx in sorted_indices if idx not in selected_indices_set]
-
+           
             # Mask out the values in simplex_query and simplex_refrain tensors
             # corresponding to selected indices
             masked_simplex_query = simplex_query.clone()
             masked_simplex_refrain = self.classwise_simplex_refrain[iteridx].clone()
-            # for idx in sorted_indices[:classwisebudget]:
-            #     masked_simplex_query[idx] = 0
-            #                 # Get the top indices based on classwisebudget after filtering
-            selected_for_current_class = set(sorted_indices[:classwisebudget])
+            for idx in selected_indices:
+                masked_simplex_query[idx] = 0
+                masked_simplex_refrain[idx] = 0
+            
             # Each tuple contains the sorted indices, the simplex_query tensor, and the class_idx
-            output.append((sorted_indices[:classwisebudget], masked_simplex_query.detach().cpu(), masked_simplex_refrain.detach().cpu(), class_idx))
+            output.append((masked_simplex_query.detach().cpu(), masked_simplex_refrain.detach().cpu(), class_idx))
             # Update the set with the indices selected for the current class
-            selected_indices_set.update(selected_for_current_class)
+            
         
         # plt.title('Distribution of Simplexes for Each Class')
         # plt.xlabel('Simplex Value')
@@ -328,8 +342,9 @@ class WASSAL_Multiclass(Strategy):
         # plt.tight_layout()
         # plt.savefig('simplex_distribution.png')
         
+        
 
-        return output
+        return selected_indices,output
 
 
     def select_for_query_refrain(self, budget):
@@ -546,43 +561,63 @@ class WASSAL_Multiclass(Strategy):
 
         # This list will store the desired tuples
         output = []
-         # Plotting the distribution of the simplexes before returning the output
-        #plt.figure(figsize=(15, 10))
-        classwisebudget=budget//self.num_classes
-        # Iterate over the keys and values in the label_to_simplex_query dictionary
+       
+        
+        # Merge all masked_simplex_query tensors
+        merged_simplex = torch.cat([self.classwise_simplex_query[i].detach().cpu() for i in range(self.num_classes)])
+
+        # Find non-zero elements and sort them in ascending order
+        non_zero_indices = torch.nonzero(merged_simplex).squeeze()
+        sorted_indices = torch.argsort(merged_simplex[non_zero_indices], descending=False).cpu().numpy().tolist()
+        # Convert sorted indices to original indices
+        original_indices = [idx % len(self.unlabeled_dataset) for idx in sorted_indices]
+        #select unqiue indices unti budget is reached
+        selected_indices = []
         selected_indices_set = set()
-        for class_idx, simplex_query in self.label_to_simplex_query.items():
+        for idx in original_indices:
+            if len(selected_indices) >= budget:
+                break
+            if idx not in selected_indices_set:
+                selected_indices.append(idx)
+                selected_indices_set.add(idx)
+
+        
+        
+
+        for iteridx,(class_idx, simplex_query) in enumerate(self.label_to_simplex_query.items()):
             
             # Get values from simplex_query and plot them
             #plt.hist(simplex_values, bins=np.linspace(0, max(simplex_values), 50), alpha=0.5, label=f'Class {class_idx}')
             
-            # Get indices sorted in descending order based on simplex_query values
-            sorted_indices = torch.argsort(simplex_query).cpu().numpy().tolist()
-            # Filter out indices that have already been selected
-            sorted_indices = [idx for idx in sorted_indices if idx not in selected_indices_set]
-
-            simplex_refrain = self.classwise_simplex_refrain[class_idx]
+           
             # Mask out the values in simplex_query and simplex_refrain tensors
             # corresponding to selected indices
             masked_simplex_query = simplex_query.clone()
-            masked_simplex_refrain = simplex_refrain.clone()
+            masked_simplex_refrain = self.classwise_simplex_refrain[iteridx].clone()
+            for idx in selected_indices:
+                masked_simplex_query[idx] = 0
+                masked_simplex_refrain[idx] = 0
             
-            # for idx in sorted_indices[:classwisebudget]:
-            #     masked_simplex_query[idx] = 0
-            #     masked_simplex_refrain[idx] = 0
-            # Get the top indices based on classwisebudget after filtering
-            selected_for_current_class = set(sorted_indices[:classwisebudget])
             # Each tuple contains the sorted indices, the simplex_query tensor, and the class_idx
-            output.append((sorted_indices[:classwisebudget], masked_simplex_query.detach().cpu(), masked_simplex_refrain.detach().cpu(), class_idx))
+            output.append((masked_simplex_query.detach().cpu(), masked_simplex_refrain.detach().cpu(), class_idx))
             # Update the set with the indices selected for the current class
-            selected_indices_set.update(selected_for_current_class)
+            
+        
+        # plt.title('Distribution of Simplexes for Each Class')
+        # plt.xlabel('Simplex Value')
+        # plt.ylabel('Count')
+        # plt.legend(loc='upper right')
+        # plt.grid(True)
+        # plt.tight_layout()
+        # plt.savefig('simplex_distribution.png')
+        
         
 
-        return output
+        return selected_indices,output
 
     def select(self, budget):
         self.num_classes = len(torch.unique(torch.stack([item[1] for item in self.query_dataset])))
-        if(self.num_classes==1):
+        if(self.num_classes==2):
             return self.select_only_for_query(budget)
         else:
             return self.select_for_query_refrain(budget)
