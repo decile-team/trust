@@ -26,7 +26,7 @@ import torchvision.models as models
 from matplotlib import pyplot as plt
 import sys
 
-sys.path.append("/home/wassal/trust-wassal/")
+sys.path.append("/home/venkat/trust-wassal/")
 
 from trust.utils.models.resnet import ResNet18
 from trust.utils.models.resnet import ResNet50
@@ -42,7 +42,7 @@ from trust.strategies.random_sampling import RandomSampling
 from trust.strategies.wassal_multiclass import WASSAL_Multiclass
 from trust.strategies.wassal_private import WASSAL_P
 
-sys.path.append("/home/wassal/distil")
+sys.path.append("/home/venkat/distil")
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
 from distil.active_learning_strategies.glister import GLISTER
@@ -544,12 +544,12 @@ def top_elements_contribute_to_percentage(simplex_query, n_percent, budget):
 feature = "classimb"
 
 # datadir = 'data/'
-datadir = "/data"  # contains the npz file of the data_name dataset listed below
+datadir = "data"  # contains the npz file of the data_name dataset listed below
 data_name = "cifar10"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 1
+device_id = 6
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -680,7 +680,7 @@ def run_targeted_selection(
     val_csvlog = []
     # Results logging file
     all_logs_dir = (
-        "/home/wassal/trust-wassal/tutorials/results/"
+        "/home/venkat/trust-wassal/tutorials/results/"
         + dataset_name
         + "/"
         + feature
@@ -734,8 +734,8 @@ def run_targeted_selection(
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
-        "lr": 0.8,
-        "iterations": 15,
+        "lr": 0.3,
+        "iterations": 30,
         "step_size": 3,
         "min_iteration": 5,
     }
@@ -1369,12 +1369,12 @@ def run_targeted_selection(
 experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [100, 200, 300, 400, 500]
-device_id = 1
+device_id = 6
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
 # model_name = 'ResNet18' #Model to use for training
-# initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+# initModelPath = "/home/venkat/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
 #  # Model Creation
 # model = create_model(model_name, num_cls, device, embedding_type)
 # #List of strategies
@@ -1427,7 +1427,7 @@ device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 embedding_type = "features"  # Type of the representation to use (gradients/features)
 model_name = "ResNet18"  # Model to use for training
 initModelPath = (
-    "/home/wassal/trust-wassal/tutorials/results/"
+    "/home/venkat/trust-wassal/tutorials/results/"
     + data_name
     + "_"
     + model_name

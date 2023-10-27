@@ -14,5 +14,12 @@ seeds = [24, 25, 26, 27, 28]
 budgets = [40, 50, 60, 70,80,90,100]
 rounds=10
 
+
+dgx:
+/home/venkat/trust-wassal/tutorials/results/archives/rounds10exp1400
+one experiment upto 400
+
+
 commands:
 python3 tutorials/All_Wassal/wassal_pneumonia_multiclass_vanilla.py 2>&1 | tee tutorials/results/pneumo.log
+
