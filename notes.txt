@@ -18,8 +18,10 @@ rounds=10
 dgx:
 /home/venkat/trust-wassal/tutorials/results/archives/rounds10exp1400
 one experiment upto 400
-
+/home/venkat/trust-wassal/tutorials/results/cifar10/classimb/roundsv110
+one full complete run of cifar10, of budget 5*budget size, desc AL selection and not zeroing
 
 commands:
 python3 tutorials/All_Wassal/wassal_pneumonia_multiclass_vanilla.py 2>&1 | tee tutorials/results/pneumo.log
-
+python3 tutorials/All_Wassal/wassal_cifar10_multiclass_vanilla.py 2>&1 | tee tutorials/results/cifar10.log
+python3 tutorials/All_Wassal/wassal_svhn_multiclass_vanilla.py 2>&1 | tee tutorials/results/svhn.log

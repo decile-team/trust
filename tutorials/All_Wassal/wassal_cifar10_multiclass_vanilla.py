@@ -549,7 +549,7 @@ data_name = "cifar10"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 6
+device_id = 7
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -663,7 +663,7 @@ def run_targeted_selection(
     # Budget for subset selection
     bud = budget
     # soft subset max budget % of the lake set
-    ss_max_budget = 80
+    ss_max_budget_percentage = 80
     # Variables to store accuracies
     num_rounds = 10  # The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
@@ -1084,15 +1084,16 @@ def run_targeted_selection(
                     sofftsimplex_query = simplex_query.detach().cpu().numpy()
                     softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
                     # choose the top simplex_query that contributes 30% to the size of that class in trainset
+                    ss_budget =10*budget
                     _, top_n_indices = top_elements_contribute_to_percentage(
-                        sofftsimplex_query, ss_max_budget, len(simplex_query)
+                        sofftsimplex_query, ss_max_budget_percentage, ss_budget
                     )
 
                     (
                         _,
                         top_n_refrain_indices,
                     ) = top_elements_contribute_to_percentage(
-                        softsimplex_refrain, ss_max_budget, len(simplex_query)
+                        softsimplex_refrain, ss_max_budget_percentage, ss_budget
                     )
                     all_soft_selected_indices += top_n_indices
                     # Collect the data
@@ -1141,7 +1142,7 @@ def run_targeted_selection(
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
                     weighted_lake_set,
-                    batch_size=3000,
+                    batch_size=10000,
                     shuffle=True,
                     pin_memory=True,
                 )
@@ -1369,7 +1370,7 @@ def run_targeted_selection(
 experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [100, 200, 300, 400, 500]
-device_id = 6
+device_id = 7
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
@@ -1442,8 +1443,8 @@ initModelPath = (
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
     # al soft
-    ("WASSAL_WITHSOFT", "WASSAL_WITHSOFT"),
     ("WASSAL", "WASSAL"),
+    ("WASSAL_WITHSOFT", "WASSAL_WITHSOFT"),
     ("AL", "glister"),
     ("AL_WITHSOFT", "glister_withsoft"),
     ("AL", "gradmatch-tss"),

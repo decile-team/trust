@@ -342,7 +342,12 @@ class WASSAL_Multiclass(Strategy):
         # plt.tight_layout()
         # plt.savefig('simplex_distribution.png')
         
+        #free all GPUs
         
+        with torch.no_grad():
+            for tensor in [query_dataset_features, unlabeled_dataset_features] + self.classwise_simplex_query + self.classwise_simplex_refrain:
+                del tensor
+        torch.cuda.empty_cache()
 
         return selected_indices,output
 
@@ -611,13 +616,16 @@ class WASSAL_Multiclass(Strategy):
         # plt.tight_layout()
         # plt.savefig('simplex_distribution.png')
         
-        
-
+        #free all GPUs
+        with torch.no_grad():
+            for tensor in [query_dataset_features, unlabeled_dataset_features] + self.classwise_simplex_query + self.classwise_simplex_refrain:
+                del tensor
+        torch.cuda.empty_cache()
         return selected_indices,output
 
     def select(self, budget):
         self.num_classes = len(torch.unique(torch.stack([item[1] for item in self.query_dataset])))
-        if(self.num_classes==2):
+        if(self.num_classes<=2):
             return self.select_only_for_query(budget)
         else:
             return self.select_for_query_refrain(budget)
