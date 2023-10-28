@@ -557,49 +557,49 @@ num_cls = 10
 # budget = 10
 visualize_tsne = False
 # for real experiments
-# split_cfg = {
-#     'train_size': 100,
-#     'val_size': 200,
-#     'lake_size': 5000,
-#     'sel_cls_idx': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-#     'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
-#     'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
-#     'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000]
-# } #Number of samples per unrare class in the unlabeled dataset
+split_cfg = {
+    'train_size': 100,
+    'val_size': 200,
+    'lake_size': 5000,
+    'sel_cls_idx': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
+    'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
+    'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000]
+} #Number of samples per unrare class in the unlabeled dataset
 
 # for smaller experiements
-split_cfg = {
-    "num_cls_imbalance": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-    "sel_cls_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-    "per_class_train": [
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-    ],  # List of sizes for each class
-    "per_class_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
-    "per_class_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
-    "per_imbclass_train": [
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-        20,
-    ],  # List of sizes for each class
-    "per_imbclass_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
-    "per_imbclass_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
-}  # Number of samples per unrare class in the unlabeled dataset
+# split_cfg = {
+#     "num_cls_imbalance": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+#     "sel_cls_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+#     "per_class_train": [
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#     ],  # List of sizes for each class
+#     "per_class_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+#     "per_class_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
+#     "per_imbclass_train": [
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#     ],  # List of sizes for each class
+#     "per_imbclass_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+#     "per_imbclass_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
+# }  # Number of samples per unrare class in the unlabeled dataset
 
 print("split_cfg:", split_cfg)
 
@@ -730,7 +730,7 @@ def run_targeted_selection(
     }
 
     strategy_args = {
-        "batch_size": 10000,
+        "batch_size": 4000,
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
@@ -1084,15 +1084,16 @@ def run_targeted_selection(
                     sofftsimplex_query = simplex_query.detach().cpu().numpy()
                     softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
                     # choose the top simplex_query that contributes 30% to the size of that class in trainset
+                    ss_budget =10*budget if budget <=100 else 5*budget
                     _, top_n_indices = top_elements_contribute_to_percentage(
-                        sofftsimplex_query, ss_max_budget, len(simplex_query)
+                        sofftsimplex_query, ss_max_budget, ss_budget
                     )
 
                     (
                         _,
                         top_n_refrain_indices,
                     ) = top_elements_contribute_to_percentage(
-                        softsimplex_refrain, ss_max_budget, len(simplex_query)
+                        softsimplex_refrain, ss_max_budget, ss_budget
                     )
                     all_soft_selected_indices += top_n_indices
                     # Collect the data
@@ -1141,7 +1142,7 @@ def run_targeted_selection(
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
                     weighted_lake_set,
-                    batch_size=10000,
+                    batch_size=5000,
                     shuffle=True,
                     pin_memory=True,
                 )
@@ -1368,7 +1369,7 @@ def run_targeted_selection(
 # %%
 experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
 seeds = [42, 43, 44, 45, 46]
-budgets = [100, 200, 300, 400, 500]
+budgets = [25,50,75,100, 200]
 device_id = 6
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 

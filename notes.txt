@@ -14,6 +14,10 @@ seeds = [24, 25, 26, 27, 28]
 budgets = [40, 50, 60, 70,80,90,100]
 rounds=10
 
+/home/venkat/trust-wassal/tutorials/results/svhn/classimb/roundsv210
+budget 100,200 batchsize: 10000 and small experiement
+svhn v210
+
 
 dgx:
 /home/venkat/trust-wassal/tutorials/results/archives/rounds10exp1400
