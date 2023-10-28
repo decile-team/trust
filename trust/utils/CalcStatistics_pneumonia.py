@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 rounds=10
 
 #for pneumonia
-base_dir = "/home/wassal/trust-wassal/tutorials/results/preserved4cvpr2024/roundsv1"+str(rounds)
+base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
 budgets = [40, 50,60,70,80,90,100]
 filename = "output_statistics_pneumo_vanilla"
@@ -25,10 +25,10 @@ filename = "output_statistics_pneumo_vanilla"
 #strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi","fl1mi_withsoft", "fl2mi_withsoft", "gcmi_withsoft", "logdetmi_withsoft", "random","WASSAL_P","logdetcmi","flcmi","logdetcmi_withsoft","flcmi_withsoft"]
 #strategy_group="WASSAL_withsoft"
 #strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_withsoft","us_withsoft","glister_withsoft","coreset_withsoft","glister_withsoft","gradmatch-tss_withsoft","leastconf_withsoft","margin_withsoft"]
-strategies = ['WASSAL_WITHSOFT','glister','glister_withsoft','gradmatch-tss','gradmatch-tss_withsoft','us','us_withsoft','coreset','coreset_withsoft','leastconf','leastconf_withsoft','margin','margin_withsoft','random']
+strategies = ['WASSAL_WITHSOFT','WASSAL','glister','glister_withsoft','gradmatch-tss','gradmatch-tss_withsoft','us','us_withsoft','coreset','coreset_withsoft','leastconf','leastconf_withsoft','margin','margin_withsoft','random']
 strategy_group="AL_WITHSOFT"
 
-experiments=['exp1','exp2','exp3','exp4','exp5']
+experiments=['exp2','exp3','exp4']
 #experiments=['exp2','exp3']
 
 # Prepare the CSV file for saving stats

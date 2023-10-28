@@ -23,3 +23,8 @@ one experiment upto 400
 commands:
 python3 tutorials/All_Wassal/wassal_pneumonia_multiclass_vanilla.py 2>&1 | tee tutorials/results/pneumo.log
 
+continue exp:
+exp5:
+50-> all
+40-> badge_withsoft and rest
+
