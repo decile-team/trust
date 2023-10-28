@@ -23,5 +23,10 @@ one full complete run of cifar10, of budget 5*budget size, desc AL selection and
 
 commands:
 python3 tutorials/All_Wassal/wassal_pneumonia_multiclass_vanilla.py 2>&1 | tee tutorials/results/pneumo.log
+
+continue exp:
+exp5:
+50-> all
+40-> badge_withsoft and rest
 python3 tutorials/All_Wassal/wassal_cifar10_multiclass_vanilla.py 2>&1 | tee tutorials/results/cifar10.log
 python3 tutorials/All_Wassal/wassal_svhn_multiclass_vanilla.py 2>&1 | tee tutorials/results/svhn.log
