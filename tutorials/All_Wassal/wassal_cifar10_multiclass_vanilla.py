@@ -735,7 +735,7 @@ def run_targeted_selection(
         "embedding_type": embedding_type,
         "keep_embedding": True,
         "lr": 0.3,
-        "iterations": 30,
+        "iterations": 15,
         "step_size": 3,
         "min_iteration": 5,
     }
