@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Targeted Selection Demo For Biomedical Datasets With Rare Classes
+# # Targeted Selection Demo For CIFAR10 Datasets With Rare Classes
 
 # %% [markdown]
 # ### Imports
@@ -30,7 +30,7 @@ sys.path.append("/home/venkatapathy/trust-wassal/")
 
 from trust.utils.models.resnet import ResNet18
 from trust.utils.models.resnet import ResNet50
-from trust.utils.custom_dataset_medmnist import load_biodataset_custom
+from trust.utils.custom_dataset import load_dataset_custom
 from torch.utils.data import Subset
 from torch.autograd import Variable
 import tqdm
@@ -61,6 +61,7 @@ from trust.utils.utils import *
 from trust.utils.viz import tsne_smi
 import math
 from random import shuffle
+
 
 # %% [markdown]
 # ### Helper functions
@@ -97,8 +98,6 @@ def create_model(name, num_cls, device, embedding_type):
             model = ResNet18(num_cls)
         else:
             model = ResNet18(num_cls)
-            # model = models.resnet18()
-            # model.fc = nn.Linear(512, num_cls)
     elif name == "ResNet50":
         if embedding_type == "gradients":
             model = ResNet50(num_cls)
@@ -194,10 +193,8 @@ def find_err_per_class(
         val_class_err_idxs.append(val_err_class_idx)
         tst_err_log.append(tst_error_perc)
         val_err_log.append(val_error_perc)
-
     if doIdisplayTable:
         displayTable(val_err_log, tst_err_log)
-
     tst_err_log.append(sum(tst_err_log) / len(tst_err_log))
     val_err_log.append(sum(val_err_log) / len(val_err_log))
     return tst_err_log, val_err_log, val_class_err_idxs
@@ -260,7 +257,7 @@ def aug_train_subset(
             remain_lake_idx,
             torch.Tensor(true_lake_set.targets.float())[remain_lake_idx],
         )
-    #print(len(lake_ss), len(remain_lake_set), len(lake_set))
+    #     print(len(lake_ss),len(remain_lake_set),len(lake_set))
     aug_train_set = ConcatWithTargets(train_set, lake_ss)
     aug_trainloader = torch.utils.data.DataLoader(
         train_set, batch_size=1000, shuffle=True, pin_memory=True
@@ -312,7 +309,6 @@ def getQuerySet(val_set, imb_cls_idx, recipe="asis"):
         )
 
         return SubsetWithTargets(val_set, miscls_idx, val_set.targets[miscls_idx])
-
     elif recipe == "penalized":
         class_counts = {i: 0 for i in imb_cls_idx}
         total_samples = len(targets_tensor)
@@ -389,7 +385,7 @@ def getPerClassSel(lake_set, subset, num_cls):
 
 
 def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex,folder_name):
-    # Plot the distribution of the simplex query colorcoded based odn the true labels
+    # Plot the distribution of the simplex query colorcoded based on the true labels
     for simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
         # Determine histogram bin edges
         counts, bin_edges = np.histogram(simplex_query, bins=10)
@@ -549,36 +545,63 @@ def top_elements_contribute_to_percentage(simplex_query, n_percent, budget):
 feature = "classimb"
 
 # datadir = 'data/'
-datadir = (
-    "data/medmnist"  # contains the npz file of the data_name dataset listed below
-)
-data_name = "pneumoniamnist"
+datadir = "data"  # contains the npz file of the data_name dataset listed below
+data_name = "cifar10"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 3
+device_id = 2
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
-num_cls = 2
+num_cls = 10
 # budget = 10
 visualize_tsne = False
+# for real experiments
 split_cfg = {
-    #  "per_class_train":{0:20,1:20},
-    #  "per_class_val":{0:10,1:10},
-    #  "per_class_lake":{0:600,1:600},
-    #  "per_class_test":{0:200,1:200},
-    "sel_cls_idx": [0, 1],
-    "per_imbclass_train": {0: 50, 1: 50},
-    "per_imbclass_val": {0: 50, 1: 50},
-    "per_imbclass_lake": {0: 1000, 1: 3000},
-    "per_imbclass_test": {0: 300, 1: 300},
-    # "sel_cls_idx": [0, 1],
-    # "per_imbclass_train": {0: 5, 1: 5},
-    # "per_imbclass_val": {0: 10, 1: 10},
-    # "per_imbclass_lake": {0: 600, 1: 1000},
-    # "per_imbclass_test": {0: 300, 1: 600},
-}
+    'train_size': 100,
+    'val_size': 200,
+    'lake_size': 5000,
+    'sel_cls_idx': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
+    'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
+    'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000]
+} #Number of samples per unrare class in the unlabeled dataset
+
+# for smaller experiements
+# split_cfg = {
+#     "num_cls_imbalance": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+#     "sel_cls_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+#     "per_class_train": [
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#     ],  # List of sizes for each class
+#     "per_class_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+#     "per_class_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
+#     "per_imbclass_train": [
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#         20,
+#     ],  # List of sizes for each class
+#     "per_imbclass_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+#     "per_imbclass_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
+# }  # Number of samples per unrare class in the unlabeled dataset
+
 print("split_cfg:", split_cfg)
 
 # %% [markdown]
@@ -592,9 +615,8 @@ print("split_cfg:", split_cfg)
 # 6. Obtain the labels of the elements in $A^*$: $L(\hat{A})$
 # 7. Train a model on the combined labeled set $E \cup L(\hat{A})$
 
+
 # %%
-
-
 def run_targeted_selection(
     dataset_name,
     datadir,
@@ -611,22 +633,16 @@ def run_targeted_selection(
     embedding_type="features",
 ):
     # load the dataset in the class imbalance setting
-    (
-        train_set,
-        val_set,
-        test_set,
-        lake_set,
-        sel_cls_idx,
-        num_cls,
-    ) = load_biodataset_custom(datadir, dataset_name, feature, split_cfg, False, False)
-
+    train_set, val_set, test_set, lake_set, sel_cls_idx, num_cls = load_dataset_custom(
+        datadir, dataset_name, feature, split_cfg, False, False
+    )
     print("Indices of randomly selected classes for imbalance: ", sel_cls_idx)
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
     trn_batch_size = 1000
-    val_batch_size = 200
-    tst_batch_size = 200
+    val_batch_size = 1000
+    tst_batch_size = 1000
 
     # # Create dataloaders
     # trainloader = torch.utils.data.DataLoader(
@@ -714,15 +730,14 @@ def run_targeted_selection(
         "sel_cls_idx": sel_cls_idx,
     }
 
-    # strategy_args = {'batch_size': 4000, 'device':device, 'embedding_type':embedding_type, 'keep_embedding':True,'lr':learning_rate}
     strategy_args = {
         "batch_size": trn_batch_size,
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
-        "lr": 0.8,
-        "iterations": 15,
-        "step_size": 3,
+        "lr": 0.3,
+        "iterations": 30,
+        "step_size": 5,
         "min_iteration": 5,
     }
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
@@ -794,7 +809,6 @@ def run_targeted_selection(
             num_cls,
             strategy_args,
         )
-
     if strategy == "random":
         strategy_sel = RandomSampling(
             train_set, unlabeled_lake_set, model, num_cls, strategy_args
@@ -827,6 +841,7 @@ def run_targeted_selection(
     final_val_classifications = []
     final_tst_predictions = []
     final_tst_classifications = []
+
 
     for i in range(num_rounds):
         tst_loss = 0
@@ -889,6 +904,7 @@ def run_targeted_selection(
                     res_dict["test_acc"].append(tst_acc[i] * 100)
                 continue
         else:
+
             # Remove true labels from the unlabeled dataset, the hypothesized labels are computed when select is called
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
             print(
@@ -958,7 +974,7 @@ def run_targeted_selection(
                 val_csvlog.append([100 - x for x in val_err_log])
 
             #update softsubset model and query if WITHSOFT
-            if "WITHSOFT" in strategy or strategy=="WASSAL":
+            if "WITHSOFT" in strategy or strategy == "WASSAL":
                 print(
                     "Updating softsoft data, queryset and model for strategy " + sf,
                 )
@@ -981,13 +997,13 @@ def run_targeted_selection(
                 subset,classwise_final_indices_simplex = strategy_softsubset.select(budget)
                 classwise_final_indices_simplex_cpu = [
                     (
-                       
+                        
                         tensor1.clone().cpu().detach(),
                         tensor2.clone().cpu().detach(),
                         class_idx,
                     )
                     for (
-                        
+                       
                         tensor1,
                         tensor2,
                         class_idx,
@@ -1005,14 +1021,13 @@ def run_targeted_selection(
                     + sf
                     + "/"
                     + str(bud)
-                     +"/"
+                    +"/"
                     +str(run)                
                     + "/simplex_viz/al_round_"
-                    + "/simplex/"
                     +str(i)
                     
                 )
-                subprocess.run(["mkdir", "-p", simplex_dir])
+                subprocess.run(["mkdir", "-p", simplex_dir])  
                 plotsimpelxDistribution(
                     lake_set, classwise_final_indices_simplex_cpu,simplex_dir
                 )
@@ -1075,7 +1090,7 @@ def run_targeted_selection(
                 all_small_simplex_refrain = []
                 all_soft_selected_indices = []
                 for (
-                   
+                    
                     simplex_query,
                     simplex_refrain,
                     class_idx,
@@ -1088,8 +1103,11 @@ def run_targeted_selection(
                     targets_refrain = targets_refrain.repeat(len(lake_set))
                     sofftsimplex_query = simplex_query.detach().cpu().numpy()
                     softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
-                    ss_budget =len(sofftsimplex_query)
                     # choose the top simplex_query that contributes 30% to the size of that class in trainset
+                    #ss_budget =10*budget if budget <=100 else 5*budget
+                    #for cifar per class budget is 3000 only
+                    ss_budget =3000
+
                     _, top_n_indices = top_elements_contribute_to_percentage(
                         sofftsimplex_query, ss_max_budget_percentage, ss_budget
                     )
@@ -1123,7 +1141,7 @@ def run_targeted_selection(
                     
                 #print the size of simplex_query for given strategy and budget
                 print("size of simplex_query for strategy "+sf+" and budget "+str(budget)+" is "+str(len(all_small_simplex_query))+"in round "+str(i))
-
+                
                 # Convert lists to tensors
                 all_small_targets = torch.tensor(all_small_targets)
                 all_small_refrain_targets = torch.tensor(all_small_refrain_targets)
@@ -1336,7 +1354,6 @@ def run_targeted_selection(
                 res_dict["test_acc"][i] - res_dict["test_acc"][i - 1],
             )
 
-
         if i == 0:
             print("Saving initial model")
             torch.save(
@@ -1369,7 +1386,7 @@ def run_targeted_selection(
     # Print overall acc improvement and rare class acc improvement, show that TL selected relevant points in space, is possible show some images
     print_final_results(res_dict, sel_cls_idx)
     print("Total gain in accuracy: ", res_dict["test_acc"][i] - res_dict["test_acc"][0])
-
+    
     #push message to url with AL and budget as title
     requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=time'+str(timing[i]))
 
@@ -1377,11 +1394,10 @@ def run_targeted_selection(
 
 
 # %%
-experiments = ["exp2", "exp3", "exp4", "exp5"]
-seeds = [24, 48, 86, 28, 92]
-budgets = [40, 50, 60, 70, 80, 90, 100]
-#budgets = [100]
-device_id = 3
+experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
+seeds = [42, 43, 44, 45, 46]
+budgets = [25,50,75,100, 200]
+device_id = 2
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
@@ -1451,8 +1467,8 @@ initModelPath = (
     + str(split_cfg["sel_cls_idx"])
 )
 #skip strategies that are already run
-skip_strategies = []
-skip_budgets = []
+skip_strategies = ["WASSAL"]
+skip_budgets = [25]
 # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
@@ -1474,7 +1490,7 @@ strategies = [
     ("AL", "badge_withsoft"),
     ("AL_WITHSOFT", "us_withsoft"),
     ("AL", "us"),
-    
+   
 ]
 
 for i, experiment in enumerate(experiments):
