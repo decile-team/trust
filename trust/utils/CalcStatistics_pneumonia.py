@@ -11,9 +11,9 @@ import matplotlib.pyplot as plt
 rounds=10
 
 #for pneumonia
-base_dir = "/home/wassal/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
+base_dir = "/home/venkatapathy/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
-budgets = [40, 50,60,70,80,90,100]
+budgets = [40]
 filename = "output_statistics_pneumo_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
@@ -28,7 +28,7 @@ filename = "output_statistics_pneumo_vanilla"
 strategies = ['WASSAL_WITHSOFT','WASSAL','glister','glister_withsoft','gradmatch-tss','gradmatch-tss_withsoft','us','us_withsoft','coreset','coreset_withsoft','leastconf','leastconf_withsoft','margin','margin_withsoft','random']
 strategy_group="AL_WITHSOFT"
 
-experiments=['exp2','exp3','exp4']
+experiments=['exp2']
 #experiments=['exp2','exp3']
 
 # Prepare the CSV file for saving stats
