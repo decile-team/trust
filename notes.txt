@@ -32,5 +32,7 @@ continue exp:
 exp5:
 50-> all
 40-> badge_withsoft and rest
+
+
 python3 tutorials/All_Wassal/wassal_cifar10_multiclass_vanilla.py 2>&1 | tee tutorials/results/cifar10.log
 python3 tutorials/All_Wassal/wassal_svhn_multiclass_vanilla.py 2>&1 | tee tutorials/results/svhn.log
