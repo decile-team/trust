@@ -25,7 +25,7 @@ import torchvision
 import torchvision.models as models
 from matplotlib import pyplot as plt
 import sys
-
+import requests
 sys.path.append("/home/wassal/trust-wassal/")
 
 from trust.utils.models.resnet import ResNet18
@@ -61,6 +61,7 @@ from trust.utils.utils import *
 from trust.utils.viz import tsne_smi
 import math
 from random import shuffle
+import atexit
 
 # %% [markdown]
 # ### Helper functions
@@ -1384,7 +1385,9 @@ def run_targeted_selection(
     # Print overall acc improvement and rare class acc improvement, show that TL selected relevant points in space, is possible show some images
     print_final_results(res_dict, sel_cls_idx)
     print("Total gain in accuracy: ", res_dict["test_acc"][i] - res_dict["test_acc"][0])
-
+    
+    #push message to url with AL and budget as title
+    requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=time'+str(timing[i]))
 
 #     tsne_plt.show()
 
