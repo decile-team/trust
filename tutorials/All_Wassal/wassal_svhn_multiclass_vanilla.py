@@ -1,5 +1,5 @@
 # %% [markdown]
-# # Targeted Selection Demo For CIFAR10 Datasets With Rare Classes
+# # Targeted Selection Demo For svhn Datasets With Rare Classes
 
 # %% [markdown]
 # ### Imports
@@ -434,7 +434,7 @@ def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex,folder_nam
         plt.ylabel("Frequency")
         plt.legend(title="Targets", bbox_to_anchor=(1.05, 1), loc="upper left")
         plt.tight_layout()
-        plt.savefig(os.path.join(folder_name,"cifar10_simplex_distribution_class_{}.png".format(class_idx)))
+        plt.savefig(os.path.join(folder_name,"svhn_simplex_distribution_class_{}.png".format(class_idx)))
         plt.close()
 
 
@@ -546,11 +546,11 @@ feature = "classimb"
 
 # datadir = 'data/'
 datadir = "data"  # contains the npz file of the data_name dataset listed below
-data_name = "cifar10"
+data_name = "svhn"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 2
+device_id = 3
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -1397,7 +1397,7 @@ def run_targeted_selection(
 experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [25,50,75,100, 200]
-device_id = 2
+device_id = 3
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
