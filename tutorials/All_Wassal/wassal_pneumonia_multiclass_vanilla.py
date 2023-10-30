@@ -1446,8 +1446,8 @@ initModelPath = (
     + str(split_cfg["sel_cls_idx"])
 )
 #skip strategies that are already run
-skip_strategies = ["WASSAL"]
-skip_budgets = [25]
+skip_strategies = []
+skip_budgets = []
 # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
