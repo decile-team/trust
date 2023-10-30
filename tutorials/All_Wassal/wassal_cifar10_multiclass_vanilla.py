@@ -730,7 +730,7 @@ def run_targeted_selection(
     }
 
     strategy_args = {
-        "batch_size": 10000,
+        "batch_size": 4000,
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
@@ -1144,7 +1144,7 @@ def run_targeted_selection(
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
                     weighted_lake_set,
-                    batch_size=10000,
+                    batch_size=4000,
                     shuffle=True,
                     pin_memory=True,
                 )
