@@ -26,7 +26,7 @@ import torchvision.models as models
 from matplotlib import pyplot as plt
 import sys
 import requests
-sys.path.append("/home/wassal/trust-wassal/")
+sys.path.append("/home/venkatapathy/trust-wassal/")
 
 from trust.utils.models.resnet import ResNet18
 from trust.utils.models.resnet import ResNet50
@@ -42,7 +42,7 @@ from trust.strategies.random_sampling import RandomSampling
 from trust.strategies.wassal_multiclass import WASSAL_Multiclass
 from trust.strategies.wassal_private import WASSAL_P
 
-sys.path.append("/home/wassal/distil")
+sys.path.append("/home/venkatapathy/distil")
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
 from distil.active_learning_strategies.glister import GLISTER
@@ -550,7 +550,7 @@ data_name = "cifar10"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 0
+device_id = 2
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -641,8 +641,8 @@ def run_targeted_selection(
     # Set batch size for train, validation and test datasets
     N = len(train_set)
     trn_batch_size = 1000
-    val_batch_size = 1000
-    tst_batch_size = 1000
+    val_batch_size = 200
+    tst_batch_size = 200
 
     # # Create dataloaders
     # trainloader = torch.utils.data.DataLoader(
@@ -681,7 +681,7 @@ def run_targeted_selection(
     val_csvlog = []
     # Results logging file
     all_logs_dir = (
-        "/home/wassal/trust-wassal/tutorials/results/"
+        "/home/venkatapathy/trust-wassal/tutorials/results/"
         + dataset_name
         + "/"
         + feature
@@ -1011,7 +1011,7 @@ def run_targeted_selection(
                 ]
                 #create a folder to save the simplex plots
                 simplex_dir = (
-                    "/home/wassal/trust-wassal/tutorials/results/"
+                    "/home/venkatapathy/trust-wassal/tutorials/results/"
                     + dataset_name
                     + "/"
                     + feature
@@ -1397,12 +1397,12 @@ def run_targeted_selection(
 experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [25,50,75,100, 200]
-device_id = 0
+device_id = 2
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
 # model_name = 'ResNet18' #Model to use for training
-# initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+# initModelPath = "/home/venkatapathy/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
 #  # Model Creation
 # model = create_model(model_name, num_cls, device, embedding_type)
 # #List of strategies
@@ -1455,7 +1455,7 @@ device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 embedding_type = "features"  # Type of the representation to use (gradients/features)
 model_name = "ResNet18"  # Model to use for training
 initModelPath = (
-    "/home/wassal/trust-wassal/tutorials/results/"
+    "/home/venkatapathy/trust-wassal/tutorials/results/"
     + data_name
     + "_"
     + model_name
