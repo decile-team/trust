@@ -433,7 +433,7 @@ def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex,folder_nam
         plt.ylabel("Frequency")
         plt.legend(title="Targets", bbox_to_anchor=(1.05, 1), loc="upper left")
         plt.tight_layout()
-        plt.savefig(os.path.join("cifar10_simplex_distribution_class_{}.png".format(class_idx)))
+        plt.savefig(os.path.join(folder_name,"cifar10_simplex_distribution_class_{}.png".format(class_idx)))
         plt.close()
 
 
@@ -639,14 +639,14 @@ def run_targeted_selection(
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
-    trn_batch_size = len(train_set)
-    val_batch_size = len(val_set)
-    tst_batch_size = len(test_set)
+    trn_batch_size = 1000
+    val_batch_size = 1000
+    tst_batch_size = 1000
 
-    # Create dataloaders
-    trainloader = torch.utils.data.DataLoader(
-        train_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True
-    )
+    # # Create dataloaders
+    # trainloader = torch.utils.data.DataLoader(
+    #     train_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True
+    # )
 
     valloader = torch.utils.data.DataLoader(
         val_set, batch_size=val_batch_size, shuffle=False, pin_memory=True
@@ -656,9 +656,9 @@ def run_targeted_selection(
         test_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True
     )
 
-    lakeloader = torch.utils.data.DataLoader(
-        lake_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True
-    )
+    # lakeloader = torch.utils.data.DataLoader(
+    #     lake_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True
+    # )
     true_lake_set = copy.deepcopy(lake_set)
     # Budget for subset selection
     bud = budget
@@ -730,13 +730,13 @@ def run_targeted_selection(
     }
 
     strategy_args = {
-        "batch_size": 4000,
+        "batch_size": trn_batch_size,
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
-        "lr": 0.8,
-        "iterations": 15,
-        "step_size": 3,
+        "lr": 0.3,
+        "iterations": 30,
+        "step_size": 5,
         "min_iteration": 5,
     }
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
@@ -1163,16 +1163,16 @@ def run_targeted_selection(
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
                     weighted_lake_set,
-                    batch_size=4000,
+                    batch_size=trn_batch_size,
                     shuffle=True,
                     pin_memory=True,
                 )
-                weighted_refrain_lakeloader = torch.utils.data.DataLoader(
-                    weighted_refrain_lake_set,
-                    batch_size=len(weighted_refrain_lake_set),
-                    shuffle=True,
-                    pin_memory=True,
-                )
+                # weighted_refrain_lakeloader = torch.utils.data.DataLoader(
+                #     weighted_refrain_lake_set,
+                #     batch_size=len(weighted_refrain_lake_set),
+                #     shuffle=True,
+                #     pin_memory=True,
+                # )
             
 
             
@@ -1197,12 +1197,12 @@ def run_targeted_selection(
 
             #Reinit train and lake loaders with new splits and reinit the model
             trainloader = torch.utils.data.DataLoader(
-                train_set, batch_size=len(train_set), shuffle=True, pin_memory=True
+                train_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True
             )
 
-            lakeloader = torch.utils.data.DataLoader(
-                lake_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True
-            )
+            # lakeloader = torch.utils.data.DataLoader(
+            #     lake_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True
+            # )
             # model = create_model(model_name, num_cls, device, strategy_args['embedding_type'])
             # optimizer = optimizer_without_scheduler(model, learning_rate)
 
