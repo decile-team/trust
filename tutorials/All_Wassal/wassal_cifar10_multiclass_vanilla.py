@@ -550,7 +550,7 @@ data_name = "cifar10"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 0
+device_id = 1
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
@@ -1397,7 +1397,7 @@ def run_targeted_selection(
 experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [25,50,75,100, 200]
-device_id = 0
+device_id = 1
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
@@ -1467,8 +1467,8 @@ initModelPath = (
     + str(split_cfg["sel_cls_idx"])
 )
 #skip strategies that are already run
-skip_strategies = ["WASSAL"]
-skip_budgets = [25]
+skip_strategies = []
+skip_budgets = []
 # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
