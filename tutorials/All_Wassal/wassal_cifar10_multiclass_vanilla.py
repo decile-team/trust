@@ -383,7 +383,7 @@ def getPerClassSel(lake_set, subset, num_cls):
     return perClsSel
 
 
-def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
+def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex,folder_name):
     # Plot the distribution of the simplex query colorcoded based on the true labels
     for simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
         # Determine histogram bin edges
@@ -433,7 +433,7 @@ def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
         plt.ylabel("Frequency")
         plt.legend(title="Targets", bbox_to_anchor=(1.05, 1), loc="upper left")
         plt.tight_layout()
-        plt.savefig("cifar10_simplex_distribution_class_{}.png".format(class_idx))
+        plt.savefig(os.path.join("cifar10_simplex_distribution_class_{}.png".format(class_idx)))
         plt.close()
 
 
@@ -734,7 +734,7 @@ def run_targeted_selection(
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
-        "lr": 0.3,
+        "lr": 0.8,
         "iterations": 15,
         "step_size": 3,
         "min_iteration": 5,
@@ -903,6 +903,7 @@ def run_targeted_selection(
                     res_dict["test_acc"].append(tst_acc[i] * 100)
                 continue
         else:
+
             # Remove true labels from the unlabeled dataset, the hypothesized labels are computed when select is called
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
             print(
@@ -1007,9 +1008,25 @@ def run_targeted_selection(
                         class_idx,
                     ) in classwise_final_indices_simplex
                 ]
-
+                #create a folder to save the simplex plots
+                simplex_dir = (
+                    "/home/wassal/trust-wassal/tutorials/results/"
+                    + dataset_name
+                    + "/"
+                    + feature
+                    + "/rounds"
+                    + str(num_rounds)
+                    + "/"
+                    + sf
+                    + "/"
+                    + str(bud)
+                    + "/simplex/"
+                    +str(i)
+                    
+                )
+                subprocess.run(["mkdir", "-p", simplex_dir])  
                 plotsimpelxDistribution(
-                    lake_set, classwise_final_indices_simplex_cpu
+                    lake_set, classwise_final_indices_simplex_cpu,simplex_dir
                 )
 
                 
@@ -1118,7 +1135,9 @@ def run_targeted_selection(
                     ] / (softsimplex_refrain[top_n_refrain_indices].sum())
                     all_small_simplex_refrain += softsimplex_refrain_normed.tolist()
                     
-                    
+                #print the size of simplex_query for given strategy and budget
+                print("size of simplex_query for strategy "+sf+" and budget "+str(budget)+" is "+str(len(all_small_simplex_query))+"in round "+str(i))
+                
                 # Convert lists to tensors
                 all_small_targets = torch.tensor(all_small_targets)
                 all_small_refrain_targets = torch.tensor(all_small_refrain_targets)
@@ -1441,6 +1460,9 @@ initModelPath = (
     + "_"
     + str(split_cfg["sel_cls_idx"])
 )
+#skip strategies that are already run
+skip_strategies = ["WASSAL"]
+skip_budgets = [25]
 # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
@@ -1475,6 +1497,9 @@ for i, experiment in enumerate(experiments):
     for b in budgets:
         # Loop through each strategy
         for strategy, method in strategies:
+            #skip strategies that are already run
+            if strategy in skip_strategies and b in skip_budgets:
+                continue
             print("Budget ", b, " Strategy ", strategy, " Method ", method)
             run_targeted_selection(
                 data_name,

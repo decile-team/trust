@@ -388,7 +388,7 @@ def getPerClassSel(lake_set, subset, num_cls):
     return perClsSel
 
 
-def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
+def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex,folder_name):
     # Plot the distribution of the simplex query colorcoded based odn the true labels
     for simplex_query, simplex_refrain, class_idx in classwise_final_indices_simplex:
         # Determine histogram bin edges
@@ -438,7 +438,7 @@ def plotsimpelxDistribution(lake_set, classwise_final_indices_simplex):
         plt.ylabel("Frequency")
         plt.legend(title="Targets", bbox_to_anchor=(1.05, 1), loc="upper left")
         plt.tight_layout()
-        plt.savefig("pneumo_simplex_distribution_class_{}.png".format(class_idx))
+        plt.savefig(os.path.join("cifar10_simplex_distribution_class_{}.png".format(class_idx)))
         plt.close()
 
 
@@ -550,7 +550,7 @@ feature = "classimb"
 
 # datadir = 'data/'
 datadir = (
-    "/data/medmnist"  # contains the npz file of the data_name dataset listed below
+    "data/medmnist"  # contains the npz file of the data_name dataset listed below
 )
 data_name = "pneumoniamnist"
 
@@ -648,7 +648,7 @@ def run_targeted_selection(
     # Budget for subset selection
     bud = budget
     # soft subset max budget % of the lake set
-    ss_max_budget = 80
+    ss_max_budget_percentage = 80
     # Variables to store accuracies
     num_rounds = 10  # The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
@@ -993,9 +993,25 @@ def run_targeted_selection(
                         class_idx,
                     ) in classwise_final_indices_simplex
                 ]
-
+                #create a folder to save the simplex plots
+                simplex_dir = (
+                    "/home/wassal/trust-wassal/tutorials/results/"
+                    + dataset_name
+                    + "/"
+                    + feature
+                    + "/rounds"
+                    + str(num_rounds)
+                    + "/"
+                    + sf
+                    + "/"
+                    + str(bud)
+                    + "/simplex/"
+                    +str(i)
+                    
+                )
+                subprocess.run(["mkdir", "-p", simplex_dir])
                 plotsimpelxDistribution(
-                    lake_set, classwise_final_indices_simplex_cpu
+                    lake_set, classwise_final_indices_simplex_cpu,simplex_dir
                 )
 
                 
@@ -1069,16 +1085,17 @@ def run_targeted_selection(
                     targets_refrain = targets_refrain.repeat(len(lake_set))
                     sofftsimplex_query = simplex_query.detach().cpu().numpy()
                     softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
+                    ss_budget =len(sofftsimplex_query)
                     # choose the top simplex_query that contributes 30% to the size of that class in trainset
                     _, top_n_indices = top_elements_contribute_to_percentage(
-                        sofftsimplex_query, ss_max_budget, len(simplex_query)
+                        sofftsimplex_query, ss_max_budget_percentage, ss_budget
                     )
 
                     (
                         _,
                         top_n_refrain_indices,
                     ) = top_elements_contribute_to_percentage(
-                        softsimplex_refrain, ss_max_budget, len(simplex_query)
+                        softsimplex_refrain, ss_max_budget_percentage, ss_budget
                     )
                     all_soft_selected_indices += top_n_indices
                     # Collect the data
@@ -1101,7 +1118,9 @@ def run_targeted_selection(
                     ] / (softsimplex_refrain[top_n_refrain_indices].sum())
                     all_small_simplex_refrain += softsimplex_refrain_normed.tolist()
                     
-                    
+                #print the size of simplex_query for given strategy and budget
+                print("size of simplex_query for strategy "+sf+" and budget "+str(budget)+" is "+str(len(all_small_simplex_query))+"in round "+str(i))
+
                 # Convert lists to tensors
                 all_small_targets = torch.tensor(all_small_targets)
                 all_small_refrain_targets = torch.tensor(all_small_refrain_targets)
@@ -1127,7 +1146,7 @@ def run_targeted_selection(
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
                     weighted_lake_set,
-                    batch_size=len(weighted_lake_set),
+                    batch_size=4000,
                     shuffle=True,
                     pin_memory=True,
                 )
@@ -1426,6 +1445,9 @@ initModelPath = (
     + "_"
     + str(split_cfg["sel_cls_idx"])
 )
+#skip strategies that are already run
+skip_strategies = ["WASSAL"]
+skip_budgets = [25]
 # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
@@ -1447,7 +1469,7 @@ strategies = [
     ("AL", "badge_withsoft"),
     ("AL_WITHSOFT", "us_withsoft"),
     ("AL", "us"),
-    ("AL_WITHSOFT", "us"),
+    
 ]
 
 for i, experiment in enumerate(experiments):
@@ -1460,6 +1482,9 @@ for i, experiment in enumerate(experiments):
     for b in budgets:
         # Loop through each strategy
         for strategy, method in strategies:
+            #skip strategies that are already run
+            if strategy in skip_strategies and b in skip_budgets:
+                continue
             print("Budget ", b, " Strategy ", strategy, " Method ", method)
             run_targeted_selection(
                 data_name,
