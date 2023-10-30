@@ -25,7 +25,7 @@ import torchvision
 import torchvision.models as models
 from matplotlib import pyplot as plt
 import sys
-
+import requests
 sys.path.append("/home/wassal/trust-wassal/")
 
 from trust.utils.models.resnet import ResNet18

@@ -61,7 +61,7 @@ from trust.utils.utils import *
 from trust.utils.viz import tsne_smi
 import math
 from random import shuffle
-import atexit
+
 
 # %% [markdown]
 # ### Helper functions
