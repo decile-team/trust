@@ -1105,7 +1105,8 @@ def run_targeted_selection(
                     softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
                     # choose the top simplex_query that contributes 30% to the size of that class in trainset
                     #ss_budget =10*budget if budget <=100 else 5*budget
-                    ss_budget =len(sofftsimplex_query)
+                    #for cifar per class budget is 3000 only
+                    ss_budget =3000
 
                     _, top_n_indices = top_elements_contribute_to_percentage(
                         sofftsimplex_query, ss_max_budget_percentage, ss_budget
