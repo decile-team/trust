@@ -640,9 +640,9 @@ def run_targeted_selection(
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
-    trn_batch_size = 500
-    val_batch_size = 100
-    tst_batch_size = 100
+    trn_batch_size = 250
+    val_batch_size = 50
+    tst_batch_size = 50
 
     # # Create dataloaders
     # trainloader = torch.utils.data.DataLoader(
@@ -1106,7 +1106,7 @@ def run_targeted_selection(
                     # choose the top simplex_query that contributes 30% to the size of that class in trainset
                     #ss_budget =10*budget if budget <=100 else 5*budget
                     #for cifar per class budget is 3000 only
-                    ss_budget =3000
+                    ss_budget =300
 
                     _, top_n_indices = top_elements_contribute_to_percentage(
                         sofftsimplex_query, ss_max_budget_percentage, ss_budget
@@ -1140,7 +1140,7 @@ def run_targeted_selection(
                     all_small_simplex_refrain += softsimplex_refrain_normed.tolist()
                     
                 #print the size of simplex_query for given strategy and budget
-                print("size of simplex_query for strategy "+sf+" and budget "+str(budget)+" is "+str(len(all_small_simplex_query))+"in round "+str(i))
+                print("size of simplex_query for strategy "+sf+" and budget "+str(budget)+" is "+str(len(all_small_simplex_query))+" in round "+str(i))
                 
                 # Convert lists to tensors
                 all_small_targets = torch.tensor(all_small_targets)
