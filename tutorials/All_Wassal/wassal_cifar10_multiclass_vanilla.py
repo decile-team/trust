@@ -739,7 +739,7 @@ def run_targeted_selection(
     }
 
     strategy_args = {
-        "batch_size": trn_batch_size,
+        "batch_size": 3000,
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
