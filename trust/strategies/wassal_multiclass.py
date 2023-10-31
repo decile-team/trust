@@ -130,7 +130,7 @@ class WASSAL_Multiclass(Strategy):
         gradType=None
         if(embedding_type=="gradients"):
             gradType = self.args['gradType'] if 'gradType' in self.args else "bias_linear"
-        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.8)
+        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.4,backend="online")
         
         unlabeled_dataset_len=len(self.unlabeled_dataset)
         shuffled_indices = list(range(unlabeled_dataset_len))
@@ -138,7 +138,7 @@ class WASSAL_Multiclass(Strategy):
         sampler = customSampler(shuffled_indices)
 
         query_dataset_len = len(self.query_dataset)
-        minibatch_size = self.args['minibatch_size'] if 'minibatch_size' in self.args else 4000
+        minibatch_size = self.args['batch_size'] if 'batch_size' in self.args else 4000
        
         num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
         if(self.args['verbose']):
@@ -376,7 +376,7 @@ class WASSAL_Multiclass(Strategy):
         gradType=None
         if(embedding_type=="gradients"):
             gradType = self.args['gradType'] if 'gradType' in self.args else "bias_linear"
-        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.8)
+        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.4,backend="online")
         
         unlabeled_dataset_len=len(self.unlabeled_dataset)
         shuffled_indices = list(range(unlabeled_dataset_len))
