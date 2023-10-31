@@ -1501,7 +1501,7 @@ strategies = [
     ("AL_WITHSOFT", "margin_withsoft"),
     ("random", "random"),
     ("AL", "badge"),
-    ("AL", "badge_withsoft"),
+    ("AL_WITHSOFT", "badge_withsoft"),
     ("AL_WITHSOFT", "us_withsoft"),
     ("AL", "us"),
    
