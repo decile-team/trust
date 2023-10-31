@@ -552,7 +552,7 @@ learning_rate = 0.0003
 computeClassErrorLog = True
 if __name__ == "__main__":
     # Accept skip_strategies and skip_budgets from command line arguments
-    device_id = int(sys.argv[1])
+    device_id = int(sys.argv[3])
     print('setting deviceid to',str(device_id))
 else:
     device_id=1
