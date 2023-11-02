@@ -300,8 +300,10 @@ class Strategy:
         return torch.squeeze(feature[layer_name])
 
     def get_feature_embedding(self, dataset, unlabeled, layer_name='avgpool'):
-        dataloader = DataLoader(dataset, batch_size = self.args['batch_size'], shuffle = False)
+        dataloader = DataLoader(dataset, batch_size = len(dataset), shuffle = False)
         features = []
+        # Ensure model is in evaluation mode for consistent feature extraction
+        self.model.eval()
         if(unlabeled):
             for batch_idx, inputs in enumerate(dataloader):
                 inputs = inputs.to(self.device)

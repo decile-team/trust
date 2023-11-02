@@ -89,18 +89,27 @@ class WASSAL_Multiclass(Strategy):
     
     def _compute_features(self, dataset, embedding_type, layer_name=None, gradType=None,isLabeled=False):
         """Helper method to compute features for a dataset."""
-        dataloader = DataLoader(dataset, batch_size=len(dataset), shuffle=False)
-        if(isLabeled):
-            images, _ = next(iter(dataloader))
-        else:
-            images = next(iter(dataloader))
-        if embedding_type == "features":
-            return self.get_feature_embedding(images, True, layer_name).view(len(dataset), -1)
-        elif embedding_type == "gradients":
-            return self.get_grad_embedding(images, False, gradType).view(len(dataset), -1)
-        else:
-            raise ValueError("Unknown embedding type.")
-    
+        dataloader = DataLoader(dataset, batch_size=1000, shuffle=False)
+        features = []
+         # Ensure model is in evaluation mode for consistent feature extraction
+        self.model.eval()
+        with torch.no_grad():
+            for batch_idx, inputs in enumerate(dataloader):
+                if(isLabeled):
+                    images, _ = next(iter(dataloader))
+                else:
+                    images = next(iter(dataloader))
+                if embedding_type == "features":
+                    batch_features= self.get_feature_embedding(images, True, layer_name).view(len(images), -1)
+                elif embedding_type == "gradients":
+                    batch_features= self.get_grad_embedding(images, False, gradType).view(len(images), -1)
+                else:
+                    raise ValueError("Unknown embedding type.")
+                 # Move the batch features to CPU memory to free up GPU memory
+                features.append(batch_features.cpu())
+        # Stack all the features and move to the desired device, if needed
+        features = torch.vstack(features).to(self.device)
+        return features
     #update based on we needed AL model or pretrained model
     def update_model(self, clf):
         if not self.pretrained_model:
@@ -130,7 +139,7 @@ class WASSAL_Multiclass(Strategy):
         gradType=None
         if(embedding_type=="gradients"):
             gradType = self.args['gradType'] if 'gradType' in self.args else "bias_linear"
-        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.4,backend="online")
+        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.9,backend="online")
         
         unlabeled_dataset_len=len(self.unlabeled_dataset)
         shuffled_indices = list(range(unlabeled_dataset_len))
@@ -139,6 +148,7 @@ class WASSAL_Multiclass(Strategy):
 
         query_dataset_len = len(self.query_dataset)
         minibatch_size = self.args['batch_size'] if 'batch_size' in self.args else 4000
+        minibatch_size = 10000
        
         num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
         if(self.args['verbose']):
@@ -279,8 +289,8 @@ class WASSAL_Multiclass(Strategy):
                 for class_idx in range(self.num_classes):
                     self.classwise_simplex_query[class_idx].data = self._proj_simplex(self.classwise_simplex_query[class_idx].data)
                     
-                    print("Epoch:[", i,"],Avg loss: [{}]".format(loss),end="\r")
-                    #break if loss is less than 1 or greater than -1
+            print("Epoch:[", i,"],Avg loss: [{}]".format(loss),end="\r")
+            #break if loss is less than 1 or greater than -1
                     
 
 
