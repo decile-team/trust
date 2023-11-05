@@ -96,9 +96,9 @@ class WASSAL_Multiclass(Strategy):
         with torch.no_grad():
             for batch_idx, inputs in enumerate(dataloader):
                 if(isLabeled):
-                    images, _ = next(iter(dataloader))
+                    images, _ = inputs
                 else:
-                    images = next(iter(dataloader))
+                    images = inputs
                 if embedding_type == "features":
                     batch_features= self.get_feature_embedding(images, True, layer_name).view(len(images), -1)
                 elif embedding_type == "gradients":
@@ -514,7 +514,7 @@ class WASSAL_Multiclass(Strategy):
                     current_batch_size = len(simplex_query[batch_idx*minibatch_size:])
                 #if the current batch size is less than minibatch size, then we need to adjust the simplex batch query and simplex batch refrain
                     
-                    if(current_batch_size<minibatch_size) and batch_idx!=0:
+                    if(current_batch_size<minibatch_size) and batch_idx !=  0:
                         diff=minibatch_size-current_batch_size
                     #for beginning index 0 add 1 to diff
                         
