@@ -108,7 +108,7 @@ class WASSAL_Multiclass(Strategy):
                  # Move the batch features to CPU memory to free up GPU memory
                 features.append(batch_features.cpu())
         # Stack all the features and move to the desired device, if needed
-        features = torch.vstack(features).to(self.device)
+        features = torch.vstack(features)
         return features
     #update based on we needed AL model or pretrained model
     def update_model(self, clf):
@@ -460,7 +460,7 @@ class WASSAL_Multiclass(Strategy):
             for class_idx in range(self.num_classes):
                 #print('entering classwisecalculation')
                 #filter query dataset based on class_idx
-                class_mask = (torch.stack([item[1] for item in self.query_dataset]) == unique_labels[class_idx]).to(self.device)
+                class_mask = torch.stack([item[1] for item in self.query_dataset]) == unique_labels[class_idx]
                 #find length of query dataset for that class_idx
                 num_query_instances = len(query_dataset_features[torch.nonzero(class_mask).squeeze()])
                
@@ -470,7 +470,7 @@ class WASSAL_Multiclass(Strategy):
                 for other_class_idx in unique_labels:
                     
                     if other_class_idx != class_idx:
-                        other_class_mask = (torch.stack([item[1] for item in self.query_dataset]) == unique_labels[other_class_idx]).to(self.device)
+                        other_class_mask = torch.stack([item[1] for item in self.query_dataset]) == unique_labels[other_class_idx]
                         other_class_indices = torch.nonzero(other_class_mask).squeeze().tolist()
                         if(len(other_class_indices)>num_samples_per_class):
                             # Randomly sample indices without replacement
@@ -482,7 +482,7 @@ class WASSAL_Multiclass(Strategy):
                 query_features = query_dataset_features[torch.nonzero(class_mask).squeeze()]
                 query_features=query_features.detach()
             
-                refrain_features = query_dataset_features[torch.tensor(refrain_indices).to(self.device)]
+                refrain_features = query_dataset_features[torch.tensor(refrain_indices)]
                 refrain_features=refrain_features.detach()
                 query_features=query_features.to(self.device)
                 refrain_features=refrain_features.to(self.device)
@@ -493,11 +493,11 @@ class WASSAL_Multiclass(Strategy):
                 gamma=gamma.to(self.device)
                 #get simplex_query for that class
                 simplex_query = self.classwise_simplex_query[class_idx]
-                #simplex_query.requires_grad = True
+                simplex_query.requires_grad = True
                 #get simplex_refrain for that class
                 simplex_refrain = self.classwise_simplex_refrain[class_idx]
-                
-                unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
+                simplex_refrain.requires_grad=True
+                #unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
                 loss_avg_query=0.0
                 loss_avg_refrain=0.0
                 loss_avg_query_refrain=0.0
@@ -505,15 +505,16 @@ class WASSAL_Multiclass(Strategy):
                 num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
                 #batchiwise WD calculation
             
-                for batch_idx,unlabeled_imgs in enumerate(unlabeled_dataloader):
+                for batch_idx in range(num_batches):
                     #print('entering batchwise')
                     # Get the features using the pretrained model
                 
                 
                 # Handle the last batch size
-                    current_batch_size = len(unlabeled_imgs)
+                    current_batch_size = len(simplex_query[batch_idx*minibatch_size:])
                 #if the current batch size is less than minibatch size, then we need to adjust the simplex batch query and simplex batch refrain
-                    if(current_batch_size<minibatch_size):
+                    
+                    if(current_batch_size<minibatch_size) and batch_idx!=0:
                         diff=minibatch_size-current_batch_size
                     #for beginning index 0 add 1 to diff
                         
@@ -563,7 +564,8 @@ class WASSAL_Multiclass(Strategy):
                 for class_idx in range(self.num_classes):
                     self.classwise_simplex_query[class_idx].data = self._proj_simplex(self.classwise_simplex_query[class_idx].data)
                     self.classwise_simplex_refrain[class_idx].data = self._proj_simplex(self.classwise_simplex_refrain[class_idx].data)
-                    print("Epoch:[", i,"],Avg loss: [{}]".format(loss),end="\r")
+            
+            print("Epoch:[", i,"],Avg loss: [{}]".format(loss),end="\r")
                     #break if loss is less than 1 or greater than -1
                     
 

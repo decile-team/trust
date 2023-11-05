@@ -566,49 +566,49 @@ num_cls = 10
 # budget = 10
 visualize_tsne = False
 # for real experiments
-split_cfg = {
-    'train_size': 100,
-    'val_size': 200,
-    'lake_size': 5000,
-    'sel_cls_idx': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-    'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
-    'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
-    'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000]
-} #Number of samples per unrare class in the unlabeled dataset
+# split_cfg = {
+#     'train_size': 100,
+#     'val_size': 200,
+#     'lake_size': 5000,
+#     'sel_cls_idx': [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+#     'per_class_train': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],  # List of sizes for each class
+#     'per_class_val': [100, 100, 100, 100, 100, 100, 100, 100, 100, 100],
+#     'per_class_lake': [3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000, 3000]
+# } #Number of samples per unrare class in the unlabeled dataset
 
 # for smaller experiements
-# split_cfg = {
-#     "num_cls_imbalance": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-#     "sel_cls_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
-#     "per_class_train": [
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#     ],  # List of sizes for each class
-#     "per_class_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
-#     "per_class_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
-#     "per_imbclass_train": [
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#         20,
-#     ],  # List of sizes for each class
-#     "per_imbclass_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
-#     "per_imbclass_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
-# }  # Number of samples per unrare class in the unlabeled dataset
+split_cfg = {
+    "num_cls_imbalance": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "sel_cls_idx": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    "per_class_train": [
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+    ],  # List of sizes for each class
+    "per_class_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+    "per_class_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
+    "per_imbclass_train": [
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+    ],  # List of sizes for each class
+    "per_imbclass_val": [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+    "per_imbclass_lake": [400, 400, 400, 400, 400, 400, 400, 400, 400, 400],
+}  # Number of samples per unrare class in the unlabeled dataset
 
 print("split_cfg:", split_cfg)
 
@@ -674,7 +674,7 @@ def run_targeted_selection(
     # soft subset max budget % of the lake set
     ss_max_budget_percentage = 30
     # Variables to store accuracies
-    num_rounds = 10  # The first round is for training the initial model and the second round is to train the final model
+    num_rounds = 5  # The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -822,10 +822,10 @@ def run_targeted_selection(
             train_set, unlabeled_lake_set, model, num_cls, strategy_args
         )
     if strategy == "WASSAL" or strategy == "WASSAL_WITHSOFT":
-        for_query_set = getQuerySet(train_set, sel_cls_idx, recipe="asis")
-        strategy_sel = WASSAL_Multiclass(
-            train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
-        )
+        #soft is also the strategy_sel for wassal
+
+        
+        strategy_sel = strategy_softsubset
 
     if strategy == "WASSAL_P" or strategy == "WASSAL_P_WITHSOFT":
         for_query_set = getQuerySet(train_set, sel_cls_idx)
@@ -919,6 +919,7 @@ def run_targeted_selection(
                 "Started a new AL round, and updating the model, queryset and data(train and unlabeled_set) for strategy "
                 + sf
             )
+            
             strategy_sel.update_data(train_set, unlabeled_lake_set)
             strategy_sel.update_model(model)
 
@@ -981,8 +982,8 @@ def run_targeted_selection(
                 csvlog.append([100 - x for x in tst_err_log])
                 val_csvlog.append([100 - x for x in val_err_log])
 
-            #update softsubset model and query if WITHSOFT
-            if "WITHSOFT" in strategy or strategy == "WASSAL":
+            #update softsubset model and query if WITHSOFT for WASSAL its already done
+            if "WITHSOFT" in strategy and "WASSAL" not in strategy:
                 print(
                     "Updating softsoft data, queryset and model for strategy " + sf,
                 )

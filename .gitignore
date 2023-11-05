@@ -42,3 +42,5 @@ trust/strategies/__pycache__/scmi.cpython-38.pyc
 trust/strategies/__pycache__/smi.cpython-38.pyc
 trust/strategies/__pycache__/strategy.cpython-38.pyc
 trust/__pycache__/__init__.cpython-38.pyc
+cifarwassal.log
+.gitignore
