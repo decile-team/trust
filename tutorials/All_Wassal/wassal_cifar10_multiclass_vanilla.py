@@ -648,9 +648,9 @@ def run_targeted_selection(
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
-    trn_batch_size = 1000
-    val_batch_size = 1000
-    tst_batch_size = 1000
+    trn_batch_size = 200
+    val_batch_size = 50
+    tst_batch_size = 50
 
     # # Create dataloaders
     # trainloader = torch.utils.data.DataLoader(
@@ -672,7 +672,7 @@ def run_targeted_selection(
     # Budget for subset selection
     bud = budget
     # soft subset max budget % of the lake set
-    ss_max_budget_percentage = 30
+    ss_max_budget_percentage = 80
     # Variables to store accuracies
     num_rounds = 5  # The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
@@ -1115,7 +1115,7 @@ def run_targeted_selection(
                     # choose the top simplex_query that contributes 30% to the size of that class in trainset
                     #ss_budget =10*budget if budget <=100 else 5*budget
                     #for cifar per class budget is 3000 only
-                    ss_budget =500
+                    ss_budget =int(len(unlabeled_lake_set)/10)
 
                     _, top_n_indices = top_elements_contribute_to_percentage(
                         sofftsimplex_query, ss_max_budget_percentage, ss_budget
