@@ -648,9 +648,9 @@ def run_targeted_selection(
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
-    trn_batch_size = 200
-    val_batch_size = 50
-    tst_batch_size = 50
+    trn_batch_size = 50
+    val_batch_size = 20
+    tst_batch_size = 20
 
     # # Create dataloaders
     # trainloader = torch.utils.data.DataLoader(
@@ -1264,7 +1264,8 @@ def run_targeted_selection(
                     outputs = model(inputs)
                     hard_loss += criterion(outputs, targets)
                 
-                loss=hard_loss+(3*soft_loss)
+                loss=hard_loss+soft_loss
+                print('Softlabels Hard loss, ',hard_loss," and soft loss ,",soft_loss," soft loss hyperparameter is 3")
                 loss.backward()
                 optimizer.step()
                 #             scheduler.step()
@@ -1397,7 +1398,7 @@ def run_targeted_selection(
     print("Total gain in accuracy: ", res_dict["test_acc"][i] - res_dict["test_acc"][0])
     
     #push message to url with AL and budget as title
-    requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=time'+str(timing[i]))
+    #requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=time'+str(timing[i]))
 
 #     tsne_plt.show()
 
