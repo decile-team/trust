@@ -475,6 +475,22 @@ def analyze_simplex(args, unlabeled_set, simplex_query):
         total_query_weight += query_weight
     print("Weight of Query samples in simplex_query: {}".format(total_query_weight))
 
+class SubsetWeightedDataset(torch.utils.data.Dataset):
+    def __init__(self, lake_set, indices, targets, simplex_weights):
+        self.lake_set = lake_set
+        self.indices = indices
+        self.targets = targets
+        self.simplex_weights = simplex_weights
+
+    def __len__(self):
+        return len(self.indices)
+
+    def __getitem__(self, idx):
+        lake_idx = self.indices[idx]
+        image = self.lake_set[lake_idx][0]
+        target = self.targets[idx]
+        simplex_weight = self.simplex_weights[idx]
+        return image, target, simplex_weight
 
 class WeightedDataset(Dataset):
     def __init__(self, imgs, targets, simplex_query, private_targets, simplex_private):
@@ -648,9 +664,9 @@ def run_targeted_selection(
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
-    trn_batch_size = 50
-    val_batch_size = 20
-    tst_batch_size = 20
+    trn_batch_size = 32
+    val_batch_size = 8
+    tst_batch_size = 8
 
     # # Create dataloaders
     # trainloader = torch.utils.data.DataLoader(
@@ -1089,89 +1105,28 @@ def run_targeted_selection(
 
             #preparing weighted loader for weighted training
             if 'WITHSOFT' in strategy:
-                    
-                # Aggregation lists
-                all_small_images = []
-                all_small_targets = []
-                all_small_simplex_query = []
-                all_small_refrain_images = []
-                all_small_refrain_targets = []
-                all_small_simplex_refrain = []
-                all_soft_selected_indices = []
-                for (
-                    
-                    simplex_query,
-                    simplex_refrain,
-                    class_idx,
-                ) in classwise_final_indices_simplex:
-                    # Extract images and targets from weighted_lake_set
-                    images = [lake_set[i][0] for i in range(len(lake_set))]
-                    targets = torch.tensor(class_idx)
-                    targets_refrain = torch.tensor(class_idx)
-                    targets = targets.repeat(len(lake_set))
-                    targets_refrain = targets_refrain.repeat(len(lake_set))
+                torch.cuda.empty_cache() 
+                all_indices = []
+                all_targets = []
+                all_simplex_weights = []
+
+                for (simplex_query, simplex_refrain, class_idx) in classwise_final_indices_simplex:
+                    targets = torch.full((len(lake_set),), class_idx, dtype=torch.long)
                     sofftsimplex_query = simplex_query.detach().cpu().numpy()
-                    softsimplex_refrain = simplex_refrain.detach().cpu().numpy()
-                    # choose the top simplex_query that contributes 30% to the size of that class in trainset
-                    #ss_budget =10*budget if budget <=100 else 5*budget
-                    #for cifar per class budget is 3000 only
-                    ss_budget =int(len(unlabeled_lake_set)/10)
-
-                    _, top_n_indices = top_elements_contribute_to_percentage(
-                        sofftsimplex_query, ss_max_budget_percentage, ss_budget
-                    )
-
-                    (
-                        _,
-                        top_n_refrain_indices,
-                    ) = top_elements_contribute_to_percentage(
-                        softsimplex_refrain, ss_max_budget_percentage, ss_budget
-                    )
-                    all_soft_selected_indices += top_n_indices
-                    # Collect the data
-                    all_small_images += [images[i] for i in top_n_indices]
-                    all_small_refrain_images += [
-                        images[i] for i in top_n_refrain_indices
-                    ]
-                    all_small_targets += targets[top_n_indices.copy()].tolist()
-                    all_small_refrain_targets += targets_refrain[
-                        top_n_refrain_indices.copy()
-                    ].tolist()
-                    softsimplex_query_normed = sofftsimplex_query[top_n_indices] / (
-                        sofftsimplex_query[top_n_indices].sum()
-                    )
-                    all_small_simplex_query += sofftsimplex_query[
-                        top_n_indices
-                    ].tolist()
-                    softsimplex_refrain_normed = softsimplex_refrain[
-                        top_n_refrain_indices
-                    ] / (softsimplex_refrain[top_n_refrain_indices].sum())
-                    all_small_simplex_refrain += softsimplex_refrain_normed.tolist()
                     
-                #print the size of simplex_query for given strategy and budget
-                print("size of simplex_query for strategy "+sf+" and budget "+str(budget)+" is "+str(len(all_small_simplex_query))+"in round "+str(i))
+                    ss_budget = int(len(unlabeled_lake_set) / 10)
+                    _, top_n_indices = top_elements_contribute_to_percentage(sofftsimplex_query, ss_max_budget_percentage, ss_budget)
+
+                    all_indices.extend(top_n_indices)
+                    all_targets.extend(targets[top_n_indices].tolist())
+                    all_simplex_weights.extend((sofftsimplex_query[top_n_indices] / sofftsimplex_query[top_n_indices].sum()).tolist())
                 
                 # Convert lists to tensors
-                all_small_targets = torch.tensor(all_small_targets)
-                all_small_refrain_targets = torch.tensor(all_small_refrain_targets)
-                all_small_simplex_query = torch.tensor(all_small_simplex_query)
-                all_small_simplex_refrain = torch.tensor(all_small_simplex_refrain)
+                all_targets = torch.tensor(all_targets)
+                all_simplex_weights = torch.tensor(all_simplex_weights)
 
-                # Form the combined weighted dataset
-                weighted_lake_set = WeightedDataset(
-                    all_small_images,
-                    all_small_targets,
-                    all_small_simplex_query,
-                    None,
-                    None,
-                )
-                weighted_refrain_lake_set = WeightedDataset(
-                    all_small_refrain_images,
-                    all_small_refrain_targets,
-                    all_small_simplex_refrain,
-                    None,
-                    None,
-                )
+                # Create the weighted dataset using the SubsetWeightedDataset
+                weighted_lake_set = SubsetWeightedDataset(lake_set, all_indices, all_targets, all_simplex_weights)
 
                 # Load into a dataloader
                 weighted_lakeloader = torch.utils.data.DataLoader(
@@ -1180,14 +1135,12 @@ def run_targeted_selection(
                     shuffle=True,
                     pin_memory=True,
                 )
-                # weighted_refrain_lakeloader = torch.utils.data.DataLoader(
-                #     weighted_refrain_lake_set,
-                #     batch_size=len(weighted_refrain_lake_set),
-                #     shuffle=True,
-                #     pin_memory=True,
-                # )
-            
 
+                # print the size of simplex_query for the given strategy and budget
+                print(f"size of simplex_query for strategy {strategy} and budget {budget} is {len(all_indices)} in round {i}")
+
+            
+            torch.cuda.empty_cache()
             
             # augment the train_set with selected indices from the lake
             train_set, lake_set, true_lake_set, add_val_set = aug_train_subset(
@@ -1235,9 +1188,7 @@ def run_targeted_selection(
                     for batch_idx, (
                                 inputs,
                                 targets,
-                                simplex_query,
-                                _,
-                                _,
+                                simplex_query
                             ) in enumerate(weighted_lakeloader):
                                 # Variables in Pytorch are differentiable.
                                 inputs = inputs.to(device)
