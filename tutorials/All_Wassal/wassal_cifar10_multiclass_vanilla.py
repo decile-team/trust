@@ -260,7 +260,7 @@ def aug_train_subset(
     #     print(len(lake_ss),len(remain_lake_set),len(lake_set))
     aug_train_set = ConcatWithTargets(train_set, lake_ss)
     aug_trainloader = torch.utils.data.DataLoader(
-        train_set, batch_size=1000, shuffle=True, pin_memory=True
+        train_set, batch_size=1000, shuffle=True, pin_memory=False
     )
     return aug_train_set, remain_lake_set, remain_true_lake_set, lake_ss
 
@@ -664,9 +664,9 @@ def run_targeted_selection(
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
-    trn_batch_size = 32
-    val_batch_size = 8
-    tst_batch_size = 8
+    trn_batch_size = 512
+    val_batch_size = 100
+    tst_batch_size = 100
 
     # # Create dataloaders
     # trainloader = torch.utils.data.DataLoader(
@@ -674,11 +674,11 @@ def run_targeted_selection(
     # )
 
     valloader = torch.utils.data.DataLoader(
-        val_set, batch_size=val_batch_size, shuffle=False, pin_memory=True
+        val_set, batch_size=val_batch_size, shuffle=False, pin_memory=False
     )
 
     tstloader = torch.utils.data.DataLoader(
-        test_set, batch_size=tst_batch_size, shuffle=False, pin_memory=True
+        test_set, batch_size=tst_batch_size, shuffle=False, pin_memory=False
     )
 
     # lakeloader = torch.utils.data.DataLoader(
@@ -690,7 +690,7 @@ def run_targeted_selection(
     # soft subset max budget % of the lake set
     ss_max_budget_percentage = 80
     # Variables to store accuracies
-    num_rounds = 5  # The first round is for training the initial model and the second round is to train the final model
+    num_rounds = 10  # The first round is for training the initial model and the second round is to train the final model
     fulltrn_losses = np.zeros(num_rounds)
     val_losses = np.zeros(num_rounds)
     tst_losses = np.zeros(num_rounds)
@@ -718,6 +718,7 @@ def run_targeted_selection(
         + "/"
         + str(run)
     )
+    torch.cuda.memory._record_memory_history()
     print("Saving results to: ", all_logs_dir)
     subprocess.run(["mkdir", "-p", all_logs_dir])  # Uncomment for saving results
     exp_name = (
@@ -759,9 +760,9 @@ def run_targeted_selection(
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
-        "lr": 0.3,
-        "iterations": 30,
-        "step_size": 5,
+        "lr": 0.001,
+        "iterations": 10,
+        "step_size": 3,
         "min_iteration": 5,
     }
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
@@ -772,7 +773,7 @@ def run_targeted_selection(
         strategy_softsubset = WASSAL_Multiclass(
             train_set, unlabeled_lake_set, for_query_set, model, num_cls, strategy_args
         )
-
+    
     print("initailizing strategy class for " + sf)
     if strategy == "AL" or strategy == "AL_WITHSOFT":
         if sf == "badge" or sf == "badge_withsoft":
@@ -928,6 +929,7 @@ def run_targeted_selection(
                     res_dict["test_acc"].append(tst_acc[i] * 100)
                 continue
         else:
+            
 
             # Remove true labels from the unlabeled dataset, the hypothesized labels are computed when select is called
             unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
@@ -1102,7 +1104,8 @@ def run_targeted_selection(
 
             weighted_lakeloader=None
             weighted_refrain_lakeloader=None
-
+            print("GPU Memory allocated before weighted dataloader")
+            print(torch.cuda.memory_summary())
             #preparing weighted loader for weighted training
             if 'WITHSOFT' in strategy:
                 torch.cuda.empty_cache() 
@@ -1133,14 +1136,14 @@ def run_targeted_selection(
                     weighted_lake_set,
                     batch_size=trn_batch_size,
                     shuffle=True,
-                    pin_memory=True,
+                    pin_memory=False,
                 )
 
                 # print the size of simplex_query for the given strategy and budget
                 print(f"size of simplex_query for strategy {strategy} and budget {budget} is {len(all_indices)} in round {i}")
 
             
-            torch.cuda.empty_cache()
+           
             
             # augment the train_set with selected indices from the lake
             train_set, lake_set, true_lake_set, add_val_set = aug_train_subset(
@@ -1163,7 +1166,7 @@ def run_targeted_selection(
 
             #Reinit train and lake loaders with new splits and reinit the model
             trainloader = torch.utils.data.DataLoader(
-                train_set, batch_size=trn_batch_size, shuffle=True, pin_memory=True
+                train_set, batch_size=trn_batch_size, shuffle=True, pin_memory=False
             )
 
             # lakeloader = torch.utils.data.DataLoader(
@@ -1184,6 +1187,7 @@ def run_targeted_selection(
 
                 model.train()
                 optimizer.zero_grad()
+                torch.cuda.memory._dump_snapshot("my_snapshot.pickle")
                 if "WITHSOFT" in strategy:
                     for batch_idx, (
                                 inputs,
