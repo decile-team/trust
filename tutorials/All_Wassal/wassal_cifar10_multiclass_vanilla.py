@@ -569,7 +569,7 @@ computeClassErrorLog = True
 if __name__ == "__main__":
     # Accept skip_strategies and skip_budgets from command line arguments
     
-    device_id = int(sys.argv[3])
+    device_id = int(sys.argv[4])
     print('setting deviceid to',str(device_id))
 else:
     device_id=1
@@ -664,7 +664,7 @@ def run_targeted_selection(
 
     # Set batch size for train, validation and test datasets
     N = len(train_set)
-    trn_batch_size = 512
+    trn_batch_size = 1000
     val_batch_size = 100
     tst_batch_size = 100
 
@@ -756,13 +756,13 @@ def run_targeted_selection(
     }
 
     strategy_args = {
-        "batch_size": trn_batch_size,
+        "batch_size": 10000,
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
         "lr": 0.001,
         "iterations": 10,
-        "step_size": 3,
+        "step_size": 5,
         "min_iteration": 5,
     }
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
@@ -1104,8 +1104,7 @@ def run_targeted_selection(
 
             weighted_lakeloader=None
             weighted_refrain_lakeloader=None
-            print("GPU Memory allocated before weighted dataloader")
-            print(torch.cuda.memory_summary())
+            
             #preparing weighted loader for weighted training
             if 'WITHSOFT' in strategy:
                 torch.cuda.empty_cache() 
@@ -1180,14 +1179,17 @@ def run_targeted_selection(
             num_ep = 1
             #         while(num_ep<150):
             # first train until full training accuracy is 0.99
+            full_trn_loss = 0
+            full_trn_correct = 0
+            full_trn_total = 0
             while full_trn_acc[i] < 0.99 and num_ep < 100:
-                loss=0.0
-                soft_loss=0.0
-                hard_loss=0.0
-
+                total_soft_loss = 0.0
+                total_hard_loss = 0.0
+                soft_loss_weight = 1  # The weight for soft loss
                 model.train()
                 optimizer.zero_grad()
-                torch.cuda.memory._dump_snapshot("my_snapshot.pickle")
+                
+                
                 if "WITHSOFT" in strategy:
                     for batch_idx, (
                                 inputs,
@@ -1197,37 +1199,36 @@ def run_targeted_selection(
                                 # Variables in Pytorch are differentiable.
                                 inputs = inputs.to(device)
                                 targets = targets.to(device)
-                                # normalize simplex_query
-                                loss = 0.0
                                 simplex_query = simplex_query.to(device)
-                                # This will zero out the gradients for this batch.
                                 
+                                
+                                # Forward pass for soft labels
                                 soft_outputs = model(inputs)
-                                target_loss_per_sample = criterion(soft_outputs, targets)
                                 
-                                soft_loss += (simplex_query * target_loss_per_sample).sum()
+                                soft_loss = criterion(soft_outputs, targets)
+                                # Weight soft_loss by simplex_query and the soft_loss_weight
+                                weighted_soft_loss = (simplex_query * soft_loss).sum() * soft_loss_weight
+                                weighted_soft_loss.backward()  # Backpropagate the weighted soft loss
+                                total_soft_loss += weighted_soft_loss.item()  # Accumulate the total soft loss
                 
                     
+                
                 for batch_idx, (inputs, targets) in enumerate(trainloader):
-                    inputs, targets = inputs.to(device), targets.to(
-                        device, non_blocking=True
-                    )
-                    # Variables in Pytorch are differentiable.
-                    inputs, target = Variable(inputs), Variable(inputs)
-                    # This will zero out the gradients for this batch.
-                    
-                    outputs = model(inputs)
-                    hard_loss += criterion(outputs, targets)
-                
-                loss=hard_loss+soft_loss
-                print('Softlabels Hard loss, ',hard_loss," and soft loss ,",soft_loss," soft loss hyperparameter is 3")
-                loss.backward()
-                optimizer.step()
-                #             scheduler.step()
+                    inputs, targets = inputs.to(device), targets.to(device, non_blocking=True)
 
-                full_trn_loss = 0
-                full_trn_correct = 0
-                full_trn_total = 0
+                    
+
+                    outputs = model(inputs)
+                    hard_loss = criterion(outputs, targets)
+                    hard_loss.backward()  # Backpropagate the hard loss
+                    total_hard_loss += hard_loss.item()  # Accumulate the total hard loss
+
+                print('Softlabels Hard loss, ',total_hard_loss," and soft loss ,",total_soft_loss," soft loss hyperparameter is ",soft_loss_weight)
+                
+                optimizer.step()
+               
+
+                
                 model.eval()
                 with torch.no_grad():
                     for batch_idx, (inputs, targets) in enumerate(
@@ -1438,7 +1439,8 @@ skip_budgets = []
 if __name__ == "__main__":
     # Accept skip_strategies and skip_budgets from command line arguments
     skip_strategies = sys.argv[1].split()
-    skip_budgets = list(map(int, sys.argv[2].split()))
+    skip_methods= sys.argv[2].split()
+    skip_budgets = list(map(int, sys.argv[3].split()))
 
 # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
@@ -1464,6 +1466,7 @@ strategies = [
    
 ]
 
+#torch._C._cuda_attach_out_of_memory_observer(torch.cuda.memory._dump_snapshot("my_snapshot.pickle"))
 for i, experiment in enumerate(experiments):
     seed = seeds[i]
     torch.manual_seed(seed)
@@ -1476,6 +1479,8 @@ for i, experiment in enumerate(experiments):
         for strategy, method in strategies:
             #skip strategies that are already run
             if strategy in skip_strategies and b in skip_budgets:
+                continue
+            if strategy in skip_methods and b in skip_budgets:
                 continue
             print("Budget ", b, " Strategy ", strategy, " Method ", method)
             run_targeted_selection(

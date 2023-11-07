@@ -89,7 +89,7 @@ class WASSAL_Multiclass(Strategy):
     
     def _compute_features(self, dataset, embedding_type, layer_name=None, gradType=None,isLabeled=False):
         """Helper method to compute features for a dataset."""
-        dataloader = DataLoader(dataset, batch_size=1000, shuffle=False)
+        dataloader = DataLoader(dataset, batch_size=4000, shuffle=False)
         features = []
          # Ensure model is in evaluation mode for consistent feature extraction
         self.model.eval()
@@ -387,7 +387,7 @@ class WASSAL_Multiclass(Strategy):
         gradType=None
         if(embedding_type=="gradients"):
             gradType = self.args['gradType'] if 'gradType' in self.args else "bias_linear"
-        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.4,backend="online")
+        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.7,backend="online")
         
         unlabeled_dataset_len=len(self.unlabeled_dataset)
         shuffled_indices = list(range(unlabeled_dataset_len))
@@ -445,7 +445,7 @@ class WASSAL_Multiclass(Strategy):
         #multiclass selection
         #if self.args has iterations, use that else use 100
         iterations = self.args['iterations'] if 'iterations' in self.args else 100
-        iterations=5
+        
        
 
         #first get query and refrain params ready
