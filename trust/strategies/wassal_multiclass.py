@@ -147,31 +147,32 @@ class WASSAL_Multiclass(Strategy):
         sampler = customSampler(shuffled_indices)
 
         query_dataset_len = len(self.query_dataset)
-        minibatch_size = self.args['batch_size'] if 'batch_size' in self.args else 4000
+        minibatch_size = self.args['minibatch_size'] if 'minibatch_size' in self.args else 4000
         
        
         num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
         if(self.args['verbose']):
             print('There are',unlabeled_dataset_len,'Unlabeled dataset')
-        self.classwise_simplex_query = []
-        self.classwise_simplex_refrain = []
-        for _ in range(self.num_classes):
+        num_classes = len(torch.unique(torch.stack([item[1] for item in self.query_dataset])))
+        classwise_simplex_query = []
+        classwise_simplex_refrain = []
+        for _ in range(num_classes):
             tensor = torch.ones(unlabeled_dataset_len, device=self.device)
             tensor = (tensor / unlabeled_dataset_len).clone().detach().requires_grad_(True)
-            self.classwise_simplex_query.append(tensor)
+            classwise_simplex_query.append(tensor)
         
-        for _ in range(self.num_classes):
+        for _ in range(num_classes):
             tensor = torch.zeros(unlabeled_dataset_len, device=self.device)
             tensor = (tensor / unlabeled_dataset_len).clone().detach().requires_grad_(True)
-            self.classwise_simplex_refrain.append(tensor)
+            classwise_simplex_refrain.append(tensor)
 
 
 
-        self.label_to_simplex_query = {}
+        label_to_simplex_query = {}
         unique_labels = torch.unique(torch.stack([item[1] for item in self.query_dataset]))
         
         for i, label in enumerate(unique_labels):
-            self.label_to_simplex_query[label.item()] = self.classwise_simplex_query[i]
+            label_to_simplex_query[label.item()] = classwise_simplex_query[i]
             
 
          # Hyperparameters for sinkhorn iterations
@@ -181,7 +182,7 @@ class WASSAL_Multiclass(Strategy):
         
         step_size = self.args['step_size'] if 'step_size' in self.args else 10
            
-        optimizer = torch.optim.Adam(self.classwise_simplex_query, lr=lr)
+        optimizer = torch.optim.Adam(classwise_simplex_query, lr=lr)
         #optimizer = torch.optim.SGD(self.classwise_simplex_query+self.classwise_simplex_refrain, lr=lr)
 
         scheduler_query = torch.optim.lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=0.1)
@@ -211,7 +212,7 @@ class WASSAL_Multiclass(Strategy):
             optimizer.zero_grad()
             #calculate loss classwise in query dataset
             
-            for class_idx in range(self.num_classes):
+            for class_idx in range(num_classes):
                 #print('entering classwisecalculation')
                 #filter query dataset based on class_idx
                 class_mask = (torch.stack([item[1] for item in self.query_dataset]) == unique_labels[class_idx]).to(self.device)
@@ -229,9 +230,9 @@ class WASSAL_Multiclass(Strategy):
                 beta = torch.ones(len(query_features), requires_grad=False)/len(query_features)
                 beta=beta.to(self.device)
                 #get simplex_query for that class
-                simplex_query = self.classwise_simplex_query[class_idx]
+                simplex_query = classwise_simplex_query[class_idx]
+                simplex_query.requires_grad = True
                 
-                unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
                 loss_avg_query=0.0
                 loss_avg_refrain=0.0
                 loss_avg_query_refrain=0.0
@@ -239,15 +240,15 @@ class WASSAL_Multiclass(Strategy):
                 num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
                 #batchiwise WD calculation
             
-                for batch_idx,unlabeled_imgs in enumerate(unlabeled_dataloader):
+                for batch_idx in range(num_batches):
                     #print('entering batchwise')
                     # Get the features using the pretrained model
                 
                 
                 # Handle the last batch size
-                    current_batch_size = len(unlabeled_imgs)
+                    current_batch_size = len(simplex_query[batch_idx*minibatch_size:])
                 #if the current batch size is less than minibatch size, then we need to adjust the simplex batch query and simplex batch refrain
-                    if(current_batch_size<minibatch_size):
+                    if(current_batch_size<minibatch_size) and batch_idx !=  0:
                         diff=minibatch_size-current_batch_size
                     #for beginning index 0 add 1 to diff
                         
@@ -306,7 +307,7 @@ class WASSAL_Multiclass(Strategy):
        
         
         # Merge all masked_simplex_query tensors
-        merged_simplex = torch.cat([self.classwise_simplex_query[i].detach().cpu() for i in range(self.num_classes)])
+        merged_simplex = torch.cat([classwise_simplex_query[i].detach().cpu() for i in range(num_classes)])
 
         # Find non-zero elements and sort them in ascending order
         non_zero_indices = torch.nonzero(merged_simplex).squeeze()
@@ -326,7 +327,7 @@ class WASSAL_Multiclass(Strategy):
         
         
 
-        for iteridx,(class_idx, simplex_query) in enumerate(self.label_to_simplex_query.items()):
+        for iteridx,(class_idx, simplex_query) in enumerate(label_to_simplex_query.items()):
             
             # Get values from simplex_query and plot them
             #plt.hist(simplex_values, bins=np.linspace(0, max(simplex_values), 50), alpha=0.5, label=f'Class {class_idx}')
@@ -335,7 +336,7 @@ class WASSAL_Multiclass(Strategy):
             # Mask out the values in simplex_query and simplex_refrain tensors
             # corresponding to selected indices
             masked_simplex_query = simplex_query.clone()
-            masked_simplex_refrain = self.classwise_simplex_refrain[iteridx].clone()
+            masked_simplex_refrain = classwise_simplex_refrain[iteridx].clone()
             for idx in selected_indices:
                 masked_simplex_query[idx] = 0
                 masked_simplex_refrain[idx] = 0
@@ -355,9 +356,7 @@ class WASSAL_Multiclass(Strategy):
         
         #free all GPUs
         
-        with torch.no_grad():
-            for tensor in [query_dataset_features, unlabeled_dataset_features] + self.classwise_simplex_query + self.classwise_simplex_refrain:
-                del tensor
+       
         torch.cuda.empty_cache()
 
         return selected_indices,output
@@ -640,4 +639,4 @@ class WASSAL_Multiclass(Strategy):
         if(self.num_classes<=2):
             return self.select_only_for_query(budget)
         else:
-            return self.select_for_query_refrain(budget)
+            return self.select_for_query(budget)

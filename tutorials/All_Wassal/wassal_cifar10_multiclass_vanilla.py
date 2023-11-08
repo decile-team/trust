@@ -756,13 +756,13 @@ def run_targeted_selection(
     }
 
     strategy_args = {
-        "batch_size": 10000,
+        "minibatch_size": 10000,
         "device": device,
         "embedding_type": embedding_type,
         "keep_embedding": True,
         "lr": 0.001,
         "iterations": 30,
-        "step_size": 5,
+        "step_size": 15,
         "min_iteration": 5,
     }
     unlabeled_lake_set = LabeledToUnlabeledDataset(lake_set)
