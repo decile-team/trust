@@ -115,8 +115,8 @@ class WASSAL_Multiclass(Strategy):
         if not self.pretrained_model:
             self.model = clf
 
-    def select_only_for_query(self,budget):
-        # venkat sir's code
+    def select_only_for_query(self, budget):
+          # venkat sir's code
         """
         Selects next set of points. Weights are all reset since in this 
         strategy the datapoints are removed
@@ -139,7 +139,7 @@ class WASSAL_Multiclass(Strategy):
         gradType=None
         if(embedding_type=="gradients"):
             gradType = self.args['gradType'] if 'gradType' in self.args else "bias_linear"
-        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.9,backend="online")
+        loss_func = SamplesLoss("sinkhorn", p=2, blur=0.05, scaling=0.7,backend="online")
         
         unlabeled_dataset_len=len(self.unlabeled_dataset)
         shuffled_indices = list(range(unlabeled_dataset_len))
@@ -148,7 +148,6 @@ class WASSAL_Multiclass(Strategy):
 
         query_dataset_len = len(self.query_dataset)
         minibatch_size = self.args['minibatch_size'] if 'minibatch_size' in self.args else 4000
-        
        
         num_batches = math.ceil(unlabeled_dataset_len/minibatch_size)
         if(self.args['verbose']):
@@ -162,7 +161,7 @@ class WASSAL_Multiclass(Strategy):
             classwise_simplex_query.append(tensor)
         
         for _ in range(num_classes):
-            tensor = torch.zeros(unlabeled_dataset_len, device=self.device)
+            tensor = torch.ones(unlabeled_dataset_len, device=self.device)
             tensor = (tensor / unlabeled_dataset_len).clone().detach().requires_grad_(True)
             classwise_simplex_refrain.append(tensor)
 
@@ -198,8 +197,9 @@ class WASSAL_Multiclass(Strategy):
         #multiclass selection
         #if self.args has iterations, use that else use 100
         iterations = self.args['iterations'] if 'iterations' in self.args else 100
-
         
+       
+
         #first get query and refrain params ready
         
         for i in range(iterations):
@@ -215,24 +215,24 @@ class WASSAL_Multiclass(Strategy):
             for class_idx in range(num_classes):
                 #print('entering classwisecalculation')
                 #filter query dataset based on class_idx
-                class_mask = (torch.stack([item[1] for item in self.query_dataset]) == unique_labels[class_idx]).to(self.device)
-                #find length of query dataset for that class_idx
-                num_query_instances = len(query_dataset_features[torch.nonzero(class_mask).squeeze()])
+                class_mask = torch.stack([item[1] for item in self.query_dataset]) == unique_labels[class_idx]
                
-                #for only one class, no refrain
-                
-    # For every non-class_idx, select equal instances
+                 #Extract refrain_features
                 query_features = query_dataset_features[torch.nonzero(class_mask).squeeze()]
                 query_features=query_features.detach()
             
+                
                 query_features=query_features.to(self.device)
+                
                 #query_imgs=query_imgs.to(self.device)
                 beta = torch.ones(len(query_features), requires_grad=False)/len(query_features)
                 beta=beta.to(self.device)
+               
                 #get simplex_query for that class
                 simplex_query = classwise_simplex_query[class_idx]
                 simplex_query.requires_grad = True
                 
+                #unlabeled_dataloader = DataLoader(dataset=self.unlabeled_dataset, batch_size=minibatch_size, shuffle=False, sampler=sampler)
                 loss_avg_query=0.0
                 loss_avg_refrain=0.0
                 loss_avg_query_refrain=0.0
@@ -248,6 +248,7 @@ class WASSAL_Multiclass(Strategy):
                 # Handle the last batch size
                     current_batch_size = len(simplex_query[batch_idx*minibatch_size:])
                 #if the current batch size is less than minibatch size, then we need to adjust the simplex batch query and simplex batch refrain
+                    
                     if(current_batch_size<minibatch_size) and batch_idx !=  0:
                         diff=minibatch_size-current_batch_size
                     #for beginning index 0 add 1 to diff
@@ -264,6 +265,7 @@ class WASSAL_Multiclass(Strategy):
                         simplex_batch_query = simplex_batch_query.clone() / simplex_batch_query.sum()
                     #simplex_batch_query.requires_grad = True
                     simplex_batch_query=simplex_batch_query.to(self.device)
+                   
                     #get minibatch unlabeled features
                     unlabeled_features = unlabeled_dataset_features[begindex : endindex]
                     
@@ -272,12 +274,12 @@ class WASSAL_Multiclass(Strategy):
                     unlabeled_features=unlabeled_features.to(self.device)
                     loss_avg_query=loss_avg_query+(loss_func(simplex_batch_query, unlabeled_features, beta, query_features) / num_batches)
                     
-                        
-                        
+                    
+                    
             
             #once all batches are done, calculate average loss
             
-                total_loss=loss_avg_query+loss_avg_refrain-0.3*loss_avg_query_refrain
+                total_loss=loss_avg_query
                 #add to the total loss
                 loss = loss + total_loss
 
@@ -288,11 +290,12 @@ class WASSAL_Multiclass(Strategy):
             #project to simplex
                            
             with torch.no_grad():
-                for class_idx in range(self.num_classes):
-                    self.classwise_simplex_query[class_idx].data = self._proj_simplex(self.classwise_simplex_query[class_idx].data)
+                for class_idx in range(num_classes):
+                    classwise_simplex_query[class_idx].data = self._proj_simplex(classwise_simplex_query[class_idx].data)
                     
+            
             print("Epoch:[", i,"],Avg loss: [{}]".format(loss),end="\r")
-            #break if loss is less than 1 or greater than -1
+                    #break if loss is less than 1 or greater than -1
                     
 
 
@@ -354,11 +357,8 @@ class WASSAL_Multiclass(Strategy):
         # plt.tight_layout()
         # plt.savefig('simplex_distribution.png')
         
-        #free all GPUs
         
-       
         torch.cuda.empty_cache()
-
         return selected_indices,output
 
 
@@ -639,4 +639,4 @@ class WASSAL_Multiclass(Strategy):
         if(self.num_classes<=2):
             return self.select_only_for_query(budget)
         else:
-            return self.select_for_query(budget)
+            return self.select_only_for_query(budget)

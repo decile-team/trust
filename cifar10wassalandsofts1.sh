@@ -6,5 +6,5 @@ SKIP_METHODS="WASSAL_WITHSOFT glister_withsoft gradmatch-tss_withsoft coreset_wi
 SKIP_BUDGETS="25 50 75 100 200"
 DEVICE_ID="2"
 # Call the Python script with the defined arguments
-python3 -u tutorials/All_Wassal/wassal_cifar10_multiclass_vanilla.py "$SKIP_STRATEGIES" "$SKIP_METHODS" "$SKIP_BUDGETS" "$DEVICE_ID" 2>&1 | tee tutorials/results/cifar10wassal_small1.log
+python3 -u tutorials/All_Wassal/wassal_cifar10_multiclass_vanilla.py "$SKIP_STRATEGIES" "$SKIP_METHODS" "$SKIP_BUDGETS" "$DEVICE_ID" 2>&1 | tee tutorials/results/cifar10_10rounds_wassal1_small.log
 python3 informme.py

@@ -1353,14 +1353,15 @@ def run_targeted_selection(
     print_final_results(res_dict, sel_cls_idx)
     print("Total gain in accuracy: ", res_dict["test_acc"][i] - res_dict["test_acc"][0])
     
-    #push message to url with AL and budget as title
-    requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=gain is ',res_dict["test_acc"][i] - res_dict["test_acc"][0])
+    if "WITHSOFT" in strategy:
+        #push message to url with AL and budget as title
+        requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=gain is ',res_dict["test_acc"][i] - res_dict["test_acc"][0])
 
 #     tsne_plt.show()
 
 
 # %%
-experiments = ["exp1", "exp2", "exp3", "exp4", "exp5"]
+experiments = ["exp1", "exp2"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [25,50,75,100, 200]
 
