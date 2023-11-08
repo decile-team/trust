@@ -761,7 +761,7 @@ def run_targeted_selection(
         "embedding_type": embedding_type,
         "keep_embedding": True,
         "lr": 0.001,
-        "iterations": 10,
+        "iterations": 30,
         "step_size": 5,
         "min_iteration": 5,
     }
@@ -1185,7 +1185,7 @@ def run_targeted_selection(
             while full_trn_acc[i] < 0.99 and num_ep < 100:
                 total_soft_loss = 0.0
                 total_hard_loss = 0.0
-                soft_loss_weight = 1  # The weight for soft loss
+                soft_loss_weight = 0.5  # The weight for soft loss
                 model.train()
                 optimizer.zero_grad()
                 
@@ -1354,7 +1354,7 @@ def run_targeted_selection(
     print("Total gain in accuracy: ", res_dict["test_acc"][i] - res_dict["test_acc"][0])
     
     #push message to url with AL and budget as title
-    #requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=time'+str(timing[i]))
+    requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=gain is ',res_dict["test_acc"][i] - res_dict["test_acc"][0])
 
 #     tsne_plt.show()
 
