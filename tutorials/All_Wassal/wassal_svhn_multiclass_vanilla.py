@@ -26,7 +26,7 @@ import torchvision.models as models
 from matplotlib import pyplot as plt
 import sys
 import requests
-sys.path.append("/home/venkatapathy/trust-wassal/")
+sys.path.append("/home/wassal/trust-wassal/")
 
 from trust.utils.models.resnet import ResNet18
 from trust.utils.models.resnet import ResNet50
@@ -42,7 +42,7 @@ from trust.strategies.random_sampling import RandomSampling
 from trust.strategies.wassal_multiclass import WASSAL_Multiclass
 from trust.strategies.wassal_private import WASSAL_P
 
-sys.path.append("/home/venkatapathy/distil")
+sys.path.append("/home/wassal/distil")
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
 from distil.active_learning_strategies.glister import GLISTER
@@ -705,7 +705,7 @@ def run_targeted_selection(
     val_csvlog = []
     # Results logging file
     all_logs_dir = (
-        "/home/venkatapathy/trust-wassal/tutorials/results/"
+        "/home/wassal/trust-wassal/tutorials/results/"
         + dataset_name
         + "/"
         + feature
@@ -718,7 +718,7 @@ def run_targeted_selection(
         + "/"
         + str(run)
     )
-    torch.cuda.memory._record_memory_history()
+    
     print("Saving results to: ", all_logs_dir)
     subprocess.run(["mkdir", "-p", all_logs_dir])  # Uncomment for saving results
     exp_name = (
@@ -1038,7 +1038,7 @@ def run_targeted_selection(
                 ]
                 #create a folder to save the simplex plots
                 simplex_dir = (
-                    "/home/venkatapathy/trust-wassal/tutorials/results/"
+                    "/home/wassal/trust-wassal/tutorials/results/"
                     + dataset_name
                     + "/"
                     + feature
@@ -1185,7 +1185,7 @@ def run_targeted_selection(
             while full_trn_acc[i] < 0.99 and num_ep < 100:
                 total_soft_loss = 0.0
                 total_hard_loss = 0.0
-                soft_loss_weight = 0.5  # The weight for soft loss
+                soft_loss_weight = 3  # The weight for soft loss
                 model.train()
                 optimizer.zero_grad()
                 
@@ -1355,13 +1355,15 @@ def run_targeted_selection(
     
     if "WITHSOFT" in strategy:
         #push message to url with AL and budget as title
-        requests.get('https://wirepusher.com/send?id=hbBompXx6&title='+sf+'_'+str(bud)+'&message=gain is ',res_dict["test_acc"][i] - res_dict["test_acc"][0])
-
+        try:
+            requests.get('https://wirepusher.com/send?id=hbBompXx6&title=CIFAR10,'+sf+'_'+str(bud)+'&message=Its run in Devasena. gain is ',str(res_dict["test_acc"][i] - res_dict["test_acc"][0]))
+        except:
+            print("error in sending message")
 #     tsne_plt.show()
 
 
 # %%
-experiments = ["exp1", "exp2"]
+experiments = ["exp1", "exp2","exp3"]
 seeds = [42, 43, 44, 45, 46]
 budgets = [25,50,75,100, 200]
 
@@ -1369,7 +1371,7 @@ device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
 # model_name = 'ResNet18' #Model to use for training
-# initModelPath = "/home/venkatapathy/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+# initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
 #  # Model Creation
 # model = create_model(model_name, num_cls, device, embedding_type)
 # #List of strategies
@@ -1422,7 +1424,7 @@ device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 embedding_type = "features"  # Type of the representation to use (gradients/features)
 model_name = "ResNet18"  # Model to use for training
 initModelPath = (
-    "/home/venkatapathy/trust-wassal/tutorials/results/"
+    "/home/wassal/trust-wassal/tutorials/results/"
     + data_name
     + "_"
     + model_name
