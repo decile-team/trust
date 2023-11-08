@@ -1363,7 +1363,7 @@ def run_targeted_selection(
 # %%
 experiments = ["exp1", "exp2"]
 seeds = [42, 43, 44, 45, 46]
-budgets = [25,50,75,100, 200]
+budgets = [50,75,100, 200]
 
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
@@ -1481,7 +1481,7 @@ for i, experiment in enumerate(experiments):
             #skip strategies that are already run
             if strategy in skip_strategies and b in skip_budgets:
                 continue
-            if strategy in skip_methods and b in skip_budgets:
+            if method in skip_methods and b in skip_budgets:
                 continue
             print("Budget ", b, " Strategy ", strategy, " Method ", method)
             run_targeted_selection(
