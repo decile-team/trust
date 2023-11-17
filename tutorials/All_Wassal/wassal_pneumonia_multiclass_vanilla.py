@@ -26,7 +26,7 @@ import torchvision.models as models
 from matplotlib import pyplot as plt
 import sys
 import requests
-sys.path.append("/home/venkatapathy/trust-wassal/")
+sys.path.append("/home/wassal/trust-wassal/")
 
 from trust.utils.models.resnet import ResNet18
 from trust.utils.models.resnet import ResNet50
@@ -42,7 +42,7 @@ from trust.strategies.random_sampling import RandomSampling
 from trust.strategies.wassal_multiclass import WASSAL_Multiclass
 from trust.strategies.wassal_private import WASSAL_P
 
-sys.path.append("/home/venkatapathy/distil")
+sys.path.append("/home/wassal/distil")
 from distil.active_learning_strategies.entropy_sampling import EntropySampling
 from distil.active_learning_strategies.badge import BADGE
 from distil.active_learning_strategies.glister import GLISTER
@@ -556,8 +556,16 @@ data_name = "pneumoniamnist"
 
 learning_rate = 0.0003
 computeClassErrorLog = True
-device_id = 3
+if __name__ == "__main__":
+    # Accept skip_strategies and skip_budgets from command line arguments
+    
+    device_id = int(sys.argv[4])
+    print('setting deviceid to',str(device_id))
+else:
+    device_id=1
+    print('setting deviceid to default',str(device_id))
 device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
+#device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 miscls = False  # Set to True if only the misclassified examples from the imbalanced classes is to be used
 
 num_cls = 2
@@ -665,7 +673,7 @@ def run_targeted_selection(
     val_csvlog = []
     # Results logging file
     all_logs_dir = (
-        "/home/venkatapathy/trust-wassal/tutorials/results/"
+        "/home/wassal/trust-wassal/tutorials/results/"
         + dataset_name
         + "/"
         + feature
@@ -995,7 +1003,7 @@ def run_targeted_selection(
                 ]
                 #create a folder to save the simplex plots
                 simplex_dir = (
-                    "/home/venkatapathy/trust-wassal/tutorials/results/"
+                    "/home/wassal/trust-wassal/tutorials/results/"
                     + dataset_name
                     + "/"
                     + feature
@@ -1386,7 +1394,7 @@ device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 
 # embedding_type = "features" #Type of the representation to use (gradients/features)
 # model_name = 'ResNet18' #Model to use for training
-# initModelPath = "/home/venkatapathy/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
+# initModelPath = "/home/wassal/trust-wassal/tutorials/results/"+data_name + "_" + model_name+"_"+embedding_type + "_" + str(learning_rate) + "_" + str(split_cfg["sel_cls_idx"])
 #  # Model Creation
 # model = create_model(model_name, num_cls, device, embedding_type)
 # #List of strategies
@@ -1439,7 +1447,7 @@ device = "cuda:" + str(device_id) if torch.cuda.is_available() else "cpu"
 embedding_type = "features"  # Type of the representation to use (gradients/features)
 model_name = "ResNet18"  # Model to use for training
 initModelPath = (
-    "/home/venkatapathy/trust-wassal/tutorials/results/"
+    "/home/wassal/trust-wassal/tutorials/results/"
     + data_name
     + "_"
     + model_name
@@ -1453,6 +1461,14 @@ initModelPath = (
 #skip strategies that are already run
 skip_strategies = []
 skip_budgets = []
+
+if __name__ == "__main__":
+    # Accept skip_strategies and skip_budgets from command line arguments
+    skip_strategies = sys.argv[1].split()
+    skip_methods= sys.argv[2].split()
+    skip_budgets = list(map(int, sys.argv[3].split()))
+
+
 # Model Creation
 model = create_model(model_name, num_cls, device, embedding_type)
 strategies = [
@@ -1489,6 +1505,8 @@ for i, experiment in enumerate(experiments):
         for strategy, method in strategies:
             #skip strategies that are already run
             if strategy in skip_strategies and b in skip_budgets:
+                continue
+            if method in skip_methods and b in skip_budgets:
                 continue
             print("Budget ", b, " Strategy ", strategy, " Method ", method)
             run_targeted_selection(
