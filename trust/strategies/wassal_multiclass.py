@@ -324,7 +324,7 @@ class WASSAL_Multiclass(Strategy):
                 selected_indices.append(idx)
                 selected_indices_set.add(idx)
 
-
+        output=[]
         
         
 
