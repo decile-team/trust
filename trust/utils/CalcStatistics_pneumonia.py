@@ -13,7 +13,7 @@ rounds=10
 #for pneumonia
 base_dir = "/home/venkatapathy/trust-wassal/tutorials/results/pneumoniamnist/classimb/rounds"+str(rounds)
 #budgets=['5', '10', '15', '20', '25']
-budgets = [40]
+budgets = [40,50,60,70,80,90,100]
 filename = "output_statistics_pneumo_vanilla"
 
 #strategies = ["WASSAL", "WASSAL_P", "fl1mi", "fl2mi", "gcmi", "logdetmi", "random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","logdetcmi","flcmi","margin"]
@@ -25,10 +25,10 @@ filename = "output_statistics_pneumo_vanilla"
 #strategies = ["WASSAL",  "fl1mi", "fl2mi", "gcmi", "logdetmi","fl1mi_withsoft", "fl2mi_withsoft", "gcmi_withsoft", "logdetmi_withsoft", "random","WASSAL_P","logdetcmi","flcmi","logdetcmi_withsoft","flcmi_withsoft"]
 #strategy_group="WASSAL_withsoft"
 #strategies = ["random","badge","us","glister","coreset","glister","gradmatch-tss","leastconf","margin","badge_withsoft","us_withsoft","glister_withsoft","coreset_withsoft","glister_withsoft","gradmatch-tss_withsoft","leastconf_withsoft","margin_withsoft"]
-strategies = ['WASSAL_WITHSOFT','WASSAL','glister','glister_withsoft','gradmatch-tss','gradmatch-tss_withsoft','us','us_withsoft','coreset','coreset_withsoft','leastconf','leastconf_withsoft','margin','margin_withsoft','random']
+strategies = ['WASSAL_withsoft','WASSAL','glister','glister_withsoft','gradmatch-tss','gradmatch-tss_withsoft','us','us_withsoft','coreset','coreset_withsoft','leastconf','leastconf_withsoft','margin','margin_withsoft','random']
 strategy_group="AL_WITHSOFT"
 
-experiments=['exp2']
+experiments=['exp2','exp3','exp4','exp5']
 #experiments=['exp2','exp3']
 
 # Prepare the CSV file for saving stats
@@ -169,43 +169,56 @@ import pandas as pd
 
 def generate_latex_table(data):
     budgets = sorted(data['Budget'].unique())
-    strategies = data['Strategy'].unique()
+    strategies = set(data['Strategy'].unique())
+
+    # Remove 'withsoft' strategies from the main list and handle them separately
+    withsoft_strategies = {s for s in strategies if 'withsoft' in s}
+    main_strategies = strategies - withsoft_strategies
 
     # Dictionary to hold the max value for each budget
     max_values = {}
     for budget in budgets:
         max_values[budget] = data[data['Budget'] == budget]['Mean Gain'].max()
 
-    table = "\\begin{table}[h!]\n"
+    table = "\\begin{table*}[h!]\n"  # Use table* for spanning two columns
     table += "\\centering\n"
+    table += "\\begin{scriptsize}\n"
     table += "\\begin{tabular}{|l|*{%d}{c|}}\n" % len(budgets)
     table += "\\hline\n"
-    table += "Strategy & " + " & ".join(map(str, budgets)) + " \\\\\n"
+    table += "Strategy (withsoft) & " + " & ".join(map(str, budgets)) + " \\\\\n"
     table += "\\hline\n"
     table += "\\hline\n"
 
-    for strategy in strategies:
-        row_data = [strategy.replace("_", "\\_")]
+    for strategy in main_strategies:
+        formatted_strategy = strategy.replace("_", "\\_")
+        if 'withsoft' not in strategy:
+            formatted_strategy += " (withsoft)"
+        row_data = [formatted_strategy]
         for budget in budgets:
-            subset = data[(data['Strategy'] == strategy) & (data['Budget'] == budget)]
-            if not subset.empty:
-                mean_gain = subset['Mean Gain'].values[0]
-                # Check if this is the max value for this budget
-                if mean_gain == max_values[budget]:
-                    row_data.append("\\textbf{" + str(mean_gain) + "}")
-                else:
-                    row_data.append(str(mean_gain))
-            else:
-                row_data.append('-')
+            normal_subset = data[(data['Strategy'] == strategy) & (data['Budget'] == budget)]
+            withsoft_subset = data[(data['Strategy'] == strategy + "_withsoft") & (data['Budget'] == budget)]
+
+            normal_mean_gain = normal_subset['Mean Gain'].values[0] if not normal_subset.empty else '-'
+            withsoft_mean_gain = withsoft_subset['Mean Gain'].values[0] if not withsoft_subset.empty else '-'
+
+            # Format the values with conditional bold
+            normal_gain_formatted = f"\\textbf{{{normal_mean_gain}}}" if normal_mean_gain == max_values[budget] and normal_mean_gain != '-' else str(normal_mean_gain)
+            withsoft_gain_formatted = f"\\textbf{{{withsoft_mean_gain}}}" if withsoft_mean_gain == max_values[budget] and withsoft_mean_gain != '-' else str(withsoft_mean_gain)
+
+            combined_value = f"{normal_gain_formatted}({withsoft_gain_formatted})" if withsoft_mean_gain != '-' else str(normal_mean_gain)
+
+            row_data.append(combined_value)
         table += " & ".join(row_data) + " \\\\\n"
         table += "\\hline\n"
 
     table += "\\end{tabular}\n"
-    table += "\\caption{Mean Gain for various strategies across budgets}\n"
-    table += "\\label{tab:my_label}\n"
-    table += "\\end{table}\n"
+    table += "\\end{scriptsize}\n"
+    table += "\\caption{Mean Gain for various strategies across budgets for PENUMONIA}\n"
+    table += "\\label{tab:pneumolabels}\n"
+    table += "\\end{table*}\n"  # Use table* for spanning two columns
 
     return table
+
 
 
 df = pd.read_csv(output_path+"_allclasses.csv")

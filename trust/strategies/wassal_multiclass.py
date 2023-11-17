@@ -305,28 +305,26 @@ class WASSAL_Multiclass(Strategy):
         #once iterations are over or loss is less than 1, return the necessary indices
         
 
-        # This list will store the desired tuples
-        output = []
-       
-        
-        # Merge all masked_simplex_query tensors
-        merged_simplex = torch.cat([classwise_simplex_query[i].detach().cpu() for i in range(num_classes)])
+        # 1. Aggregate Maximum Values Across Classes
+        max_across_classes = torch.zeros_like(self.unlabeled_dataset, device=self.device)
+        for classwise_simplex in classwise_simplex_query:
+            max_across_classes = torch.max(max_across_classes, classwise_simplex)
 
-        # Find non-zero elements and sort them in ascending order
-        non_zero_indices = torch.nonzero(merged_simplex).squeeze()
-        sorted_indices = torch.argsort(merged_simplex[non_zero_indices], descending=False).cpu().numpy().tolist()
-        # Convert sorted indices to original indices
-        original_indices = [idx % len(self.unlabeled_dataset) for idx in sorted_indices]
-        #select unqiue indices unti budget is reached
+        # 2. Select Least Non-Zero Values
+        non_zero_indices = torch.nonzero(max_across_classes).squeeze()
+        sorted_values, sorted_indices = torch.sort(max_across_classes[non_zero_indices])
+        original_indices = [idx % len(self.unlabeled_dataset) for idx in sorted_indices.cpu().numpy().tolist()]
+
         selected_indices = []
         selected_indices_set = set()
         for idx in original_indices:
             if len(selected_indices) >= budget:
                 break
-            if idx not in selected_indices_set:
+            if idx not in selected_indices_set and max_across_classes[idx] > 0:
                 selected_indices.append(idx)
                 selected_indices_set.add(idx)
 
+        output=[]
         
         
 
